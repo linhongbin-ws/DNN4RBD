@@ -320,12 +320,12 @@ def rk4(derivs, y0, t, *args, **kwargs):
     *t*
         sample times
     *derivs*
-        returns the derivative of the system and has the
+        returns the derivative.py of the system and has the
         signature ``dy = derivs(yi, ti)``
     *args*
-        additional arguments passed to the derivative function
+        additional arguments passed to the derivative.py function
     *kwargs*
-        additional keyword arguments passed to the derivative function
+        additional keyword arguments passed to the derivative.py function
     Example 1 ::
         ## 2D system
         def derivs6(x,t):

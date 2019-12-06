@@ -26,3 +26,17 @@ class DeLan_inverseDynamic(torch.nn.Module):
                 cnt +=1
 
         return x
+
+
+class DerivativeNet(torch.nn.Module):
+    def __init__(self, baseNet, device='cpu'):
+        super(DerivativeNet, self).__init__()
+        self._baseNet = baseNet
+    def forward(self, x):
+        x.requires_grad_(True)
+        h = self._baseNet(x)
+        a = torch.zeros(h.shape,requires_grad=True)
+        for i in range(x.shape[0]):
+            dx1 = torch.autograd.grad(outputs=h[i][0], inputs=x[i][0],retain_graph=True)
+            a = dx1
+        return a
