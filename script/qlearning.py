@@ -23,7 +23,7 @@ class Qlearn:
         q = [self.getQ(state, a) for a in self.actions]
         maxQ = max(q)
 
-        if random.random() < self.epsilon
+        if random.random() < self.epsilon:
             minQ = min(q); mag = max(abs(minQ), abs(maxQ))
             q = [q[i] + random.random() * mag - .5 * mag for i in range(len(self.actions))]
             maxQ = max(q)

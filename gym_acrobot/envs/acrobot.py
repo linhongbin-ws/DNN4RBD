@@ -29,19 +29,9 @@ class AcrobotBmt_Dynamics:
         self.f2 = 0.1
         self.g = 9.8
 
-    def forward(self, s_augmented, t):
-
-        a = s_augmented[-1]
-        s = s_augmented[:-1]
-        q1 = s[0]
-        q2 = s[1]
-        #q = np.array([[q1],[q2]])
-        qd1 = s[2]
-        qd2 = s[3]
-        qd = np.array([[qd1], [qd2]])
+    def cal_components(self, q1, q2, qd1, qd2, a):
         s1 = sin(q1)
         s2 = sin(q2)
-        #c1 = cos(q1)
         c2 = cos(q2)
         s12 = sin(q1+q2)
 
@@ -62,22 +52,30 @@ class AcrobotBmt_Dynamics:
         C = np.array([[C11,C12],[C21,C22]])
 
         # gravitation term
-        G1 = g * (self.m1 * self.lc1 * s1 + self.m2 * (self.l1 * s1 + self.lc2 * s12))
-        G2 = g * self.m2 * self.lc2 * s12
+        G1 = self.g * (self.m1 * self.lc1 * s1 + self.m2 * (self.l1 * s1 + self.lc2 * s12))
+        G2 = self.g * self.m2 * self.lc2 * s12
         G = np.array([[G1],[G2]])
 
 
         # friction force
-        # F1 = f1
-        # F2 = f2
         F = np.array([[self.f1, 0.0], [0.0, self.f2]])
 
 
-        # action torque
-        A = np.array([[a],[0.]])
+        # action torque / Torque applied on 2nd joint
+        A = np.array([[0.],[a]])
+        return (M,C,G,F,A)
+
+    def forward(self, s_augmented, t):
+        a = s_augmented[-1]
+        s = s_augmented[:-1]
+        q1 = s[0]
+        q2 = s[1]
+        qd1 = s[2]
+        qd2 = s[3]
+        qd = np.array([[qd1], [qd2]])
+        M,C,G,F,A = self.cal_components(q1,q2,qd1,qd2,a)
         tmp = A-C.dot(qd)-G-F.dot(qd)
         ddq = np.linalg.inv(M).dot(tmp)
-
         return (qd1, qd2, ddq[0][0], ddq[1][0], 0.)
 
     def inverse(self, s_augmented):
@@ -95,46 +93,28 @@ class AcrobotBmt_Dynamics:
         qd1 = s[2]
         qd2 = s[3]
         qd = np.array([[qd1], [qd2]])
-        s1 = sin(q1)
-        s2 = sin(q2)
-        #c1 = cos(q1)
-        c2 = cos(q2)
-        s12 = sin(q1+q2)
         qdd1 = s[4]
         qdd2 = s[5]
         qdd = np.array([[qdd1], [qdd2]])
 
-        # frequent variable
-        m2l1lc2 = self.m2*self.l1*self.lc2
-        # inertia matrix
-        M11 = self.I1 + self.I2 + self.m2 * self.l1 ** 2 + 2 * m2l1lc2 * c2
-        M12 = self.I2 + m2l1lc2 * c2
-        M21 = M12
-        M22 = self.I2
-        M = np.array([[M11,M12],[M21,M22]])
-
-        # Coriolis and centrifigual matrix
-        C11 = -2 * m2l1lc2 * s2 * qd2;
-        C12 = -m2l1lc2 * s2 * qd2;
-        C21 = m2l1lc2 * s2 * qd1;
-        C22 = 0;
-        C = np.array([[C11,C12],[C21,C22]])
-
-        # gravitation term
-        G1 = g * (self.m1 * self.lc1 * s1 + self.m2 * (self.l1 * s1 + self.lc2 * s12))
-        G2 = g * self.m2 * self.lc2 * s12
-        G = np.array([[G1],[G2]])
-
-
-        # friction force
-        # F1 = f1
-        # F2 = f2
-        F = np.array([[self.f1, 0.0], [0.0, self.f2]])
-
-
-        # action torque
-        A = np.array([[a],[0.]])
+        M, C, G, F, A = self.cal_components(q1, q2, qd1, qd2, a)
         tau = A-C.dot(qd)-G-F.dot(qd)-M.dot(qdd)
+        return (tau[0][0], tau[1][0])
+
+    def inverse_Inertia(self, s_augmented):
+        a = s_augmented[-1]
+        s = s_augmented[:-1]
+        q1 = s[0]
+        q2 = s[1]
+        qd1 = s[2]
+        qd2 = s[3]
+        qd = np.array([[qd1], [qd2]])
+        qdd1 = s[4]
+        qdd2 = s[5]
+        qdd = np.array([[qdd1], [qdd2]])
+
+        M, C, G, F, A = self.cal_components(q1, q2, qd1, qd2, a)
+        tau = M.dot(qdd)
         return (tau[0][0], tau[1][0])
 
 class AcrobotBmt(core.Env):
@@ -301,71 +281,6 @@ class AcrobotBmt(core.Env):
     #     ddtheta1 = -(d2 * ddtheta2 + phi1) / d1
     #     return (dtheta1, dtheta2, ddtheta1, ddtheta2, 0.)
 
-    # replace function _dsdt with a new function that are more closed to Acrobot in Bmt
-    # def _dynamicEquation(self, s_augmented, t):
-    #     m1 = 1
-    #     m2 = 1
-    #     l1 = 1
-    #     l2 = 2
-    #     lc1 = l1/2
-    #     lc2 = l2/2
-    #     Ic1 = 0.083
-    #     Ic2 = 0.33
-    #     I1 = Ic1 + m1*lc1**2
-    #     I2 = Ic2 + m2*lc2**2
-    #     f1 = 0.1
-    #     f2 = 0.1
-    #
-    #
-    #     g = 9.8
-    #     a = s_augmented[-1]
-    #     s = s_augmented[:-1]
-    #     q1 = s[0]
-    #     q2 = s[1]
-    #     q = np.array([[q1],[q2]])
-    #     qd1 = s[2]
-    #     qd2 = s[3]
-    #     qd = np.array([[qd1], [qd2]])
-    #     s1 = sin(q1)
-    #     s2 = sin(q2)
-    #     c1 = cos(q1)
-    #     c2 = cos(q2)
-    #     s12 = sin(q1+q2)
-    #
-    #     # frequent variable
-    #     m2l1lc2 = m2*l1*lc2
-    #     # inertia matrix
-    #     M11 = I1 + I2 + m2 * l1 ** 2 + 2 * m2l1lc2 * c2
-    #     M12 = I2 + m2l1lc2 * c2
-    #     M21 = M12
-    #     M22 = I2
-    #     M = np.array([[M11,M12],[M21,M22]])
-    #
-    #     # Coriolis and centrifigual matrix
-    #     C11 = -2 * m2l1lc2 * s2 * qd2;
-    #     C12 = -m2l1lc2 * s2 * qd2;
-    #     C21 = m2l1lc2 * s2 * qd1;
-    #     C22 = 0;
-    #     C = np.array([[C11,C12],[C21,C22]])
-    #
-    #     # gravitation term
-    #     G1 = g * (m1 * lc1 * s1 + m2 * (l1 * s1 + lc2 * s12))
-    #     G2 = g * m2 * lc2 * s12
-    #     G = np.array([[G1],[G2]])
-    #
-    #
-    #     # friction force
-    #     F1 = f1
-    #     F2 = f2
-    #     F = np.array([[f1, 0.0], [0.0, f2]])
-    #
-    #
-    #     # action torque
-    #     A = np.array([[a],[0.]])
-    #     tmp = A-C.dot(qd)-G-F.dot(qd)
-    #     ddq = np.linalg.inv(M).dot(tmp)
-    #
-    #     return (qd1, qd2, ddq[0][0], ddq[1][0], 0.)
 
     def render(self, mode='human'):
         from gym.envs.classic_control import rendering
