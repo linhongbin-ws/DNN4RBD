@@ -1,8 +1,9 @@
 import torch
 from Net import *
+import numpy as np
 
 class DeLan_inverseDynamic(torch.nn.Module):
-    def __init__(self, LdNet, LoNet, VNet, DOF=2,  device='cpu'):
+    def __init__(self, LdNet, LoNet, VNet, DOF,  device='cpu'):
         self._LdNet = LdNet
         self._LoNet = LoNet
         self._VNet = VNet
@@ -14,18 +15,11 @@ class DeLan_inverseDynamic(torch.nn.Module):
         h_ld = self._LdNet(q)
         h_lo = self._LoNet(q)
         L_mat = torch.zeros(self._dof, self._dof)
-        for i in range(h_ld.shape[1]):
-            L_mat[i][i] = h_ld[0][i]
-
-        for i in range(h_ld.shape[1]):
-            L_mat[i][i] = h_ld[i]
-        cnt = 0
-        for i in range(self._dof):
-            for j in range(i):
-                L_mat[i][j] = h_lo[0][cnt]
-                cnt +=1
-
-        return x
+        L_mat[np.tril_indices(self._dof, 1)] = h_lo
+        L_mat[range(self._dof),range(self._dof)] = h_ld
+        H = torch.mm(L_mat.t(),L_mat)
+        tau_m = qDDot.matmul(H)
+        return tau_m
 
 
 class DerivativeNet(torch.nn.Module):
