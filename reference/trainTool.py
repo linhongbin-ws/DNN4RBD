@@ -8,7 +8,7 @@ if platform.system()=='Darwin':
     matplotlib.use('TkAgg')
 
 import matplotlib.pyplot as plt
-from regularizeTool import EarlyStopping
+from reference.regularizeTool import EarlyStopping
 # from Net import Lagrange_Net
 from loadModel import load_model
 
