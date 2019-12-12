@@ -4,11 +4,11 @@ import numpy as np
 from Net import ReLuNet
 
 class DeLanNet_inverse(torch.nn.Module):
-    def __init__(self, Ld_Net, LoNet, VNet, DOF,  device='cpu'):
+    def __init__(self, Ld_Net, LoNet, gNet, DOF,  device='cpu'):
         super(DeLanNet_inverse, self).__init__()
         self._LdNet = Ld_Net
         self._LoNet = LoNet
-        self._VNet = VNet
+        self._gNet = gNet
         self._dof = DOF
         self.device = device
     def forward(self, x):
@@ -49,8 +49,8 @@ class DeLanNet_inverse(torch.nn.Module):
                 dH[:, i, j] = tmp.squeeze(2).squeeze(1)
         c2 = qDot.unsqueeze(1).bmm(dH)
         c2 = c2.squeeze(1)
-
-        tau_mat = tau_m_mat + c1 + c2
+        g = self._gNet(q)
+        tau_mat = tau_m_mat + c1 + c2 + g
         return tau_mat
 
 

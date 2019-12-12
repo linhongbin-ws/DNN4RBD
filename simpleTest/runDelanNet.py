@@ -14,6 +14,7 @@ from reference.regularizeTool import EarlyStopping
 from loadModel import load_model
 from DeLan import DeLanNet_inverse
 from Net import *
+import time
 
 
 
@@ -29,12 +30,12 @@ earlyStop_patience = 50
 learning_rate = 0.04
 weight_decay = 1e-4
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-Ld_Net = SinNet(2,100,2).to(device)
+Ld_Net = ReLuNet(2,[10,10],2).to(device)
 lo_size = 0
 for i in range(1, 2):
     lo_size += i
-Lo_Net = SinNet(2,100,lo_size).to(device)
-
+Lo_Net = ReLuNet(2,[10,10],lo_size).to(device)
+gNet = ReLuNet(2,[10],2).to(device)
 class CustomDataset(Dataset):
     def __init__(self, input_mat, output_mat, is_scale=True, device='cpu'):
         # scale output to zeroscore
@@ -65,29 +66,33 @@ class CustomDataset(Dataset):
 
 
 dynamicModel = AcrobotBmt_Dynamics()
-model = DeLanNet_inverse(Ld_Net, Lo_Net, 2,  device=device)
-q1_sample_num, q2_sample_num, qdd1_sample_num, qdd2_sample_num = 50, 50, 2, 2
+model = DeLanNet_inverse(Ld_Net, Lo_Net, gNet, 2,  device=device)
+q1_sample_num, q2_sample_num, qd1_sample_num, qd2_sample_num, qdd1_sample_num, qdd2_sample_num = 10, 10, 10, 10, 1, 1
 
 
 
 q1_arr = np.linspace(-pi, pi, num=q1_sample_num)
 q2_arr = np.linspace(-pi, pi, num=q2_sample_num)
+qd1_arr = np.linspace(1, 4, num=q2_sample_num)
+qd2_arr = np.linspace(1, 4, num=q2_sample_num)
 qdd1_arr = np.linspace(2, 10, num=qdd1_sample_num)
 qdd2_arr = np.linspace(2, 10, num=qdd2_sample_num)
 
-total_size = q1_arr.size*q2_arr.size*qdd1_arr.size*qdd2_arr.size
+total_size = q1_arr.size*q2_arr.size*qd1_arr.size*qd2_arr.size*qdd1_arr.size*qdd2_arr.size
 input_mat = np.zeros((total_size, 6))
 output_mat = np.zeros((total_size, 2))
 cnt = 0
 for q1 in q1_arr:
     for q2 in q2_arr:
-        for qdd1 in qdd1_arr:
-            for qdd2 in qdd2_arr:
-                s_augmented = [q1, q2, 0., 0., qdd1, qdd2, 0.]
-                tau1, tau2 = dynamicModel.inverse_Inertia(s_augmented)
-                input_mat[cnt,0], input_mat[cnt,1], input_mat[cnt,4], input_mat[cnt,5] = q1, q2, qdd1, qdd2
-                output_mat[cnt, 0], output_mat[cnt, 1] = tau1, tau2
-                cnt +=1
+        for qd1 in qd1_arr:
+            for qd2 in qd2_arr:
+                for qdd1 in qdd1_arr:
+                    for qdd2 in qdd2_arr:
+                        s_augmented = [q1, q2, qd1, qd2, qdd1, qdd2, 0.]
+                        tau1, tau2 = dynamicModel.inverse(s_augmented)
+                        input_mat[cnt,0], input_mat[cnt,1],input_mat[cnt,2], input_mat[cnt,3], input_mat[cnt,4], input_mat[cnt,5] = q1, q2, qd1, qd2, qdd1, qdd2
+                        output_mat[cnt, 0], output_mat[cnt, 1] = tau1, tau2
+                        cnt +=1
 print(input_mat.shape)
 print(output_mat.shape)
 
@@ -113,9 +118,11 @@ early_stopping = EarlyStopping(patience=earlyStop_patience, verbose=False)
 avg_train_losses = []  # to track the average training loss per epoch as the model trains
 avg_valid_losses = []  # to track the average validation loss per epoch as the model trains
 
+print("Start Training")
 for t in range(max_training_epoch):
     train_losses = []
     valid_losses = []
+    start_time = time.time()
     for feature, target in train_loader:
         target_hat = model(feature)
         loss = loss_fn(target_hat, target)
@@ -133,7 +140,8 @@ for t in range(max_training_epoch):
     valid_loss = np.average(valid_losses)
     avg_train_losses.append(train_loss)
     avg_valid_losses.append(valid_loss)
-    print('Epoch', t, ': Train Loss is ', train_loss, 'Validate Loss is', valid_loss)
+    ellapse_time = time.time() - start_time
+    print('Epoch', t, ': Train Loss is ', train_loss, 'Validate Loss is', valid_loss,", One Interation take ", ellapse_time)
 
     if valid_loss<=goal_loss:
         print("Reach goal loss, valid_loss=", valid_loss,'< goal loss=', goal_loss)
