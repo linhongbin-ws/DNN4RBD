@@ -87,7 +87,7 @@ def get_model(robot, use_net, D, device='cpu'):
 
 def save_model(file_path, file_name, model, input_scaler=None, output_scaler=None):
     if not path.exists(file_path):
-        mkdir(path)
+        mkdir(file_path)
 
     if isinstance(model, list):
         save_dict = {'model' + str(i + 1): model[i].state_dict() for i in range(len(model))}

@@ -11,7 +11,7 @@ if platform.system()=='Darwin':
 import matplotlib.pyplot as plt
 from os import remove
 from reference.regularizeTool import EarlyStopping
-from loadModel import load_model
+from loadModel import load_model, save_model
 from DeLan import DeLanNet_inverse
 from Net import *
 import time
@@ -26,7 +26,7 @@ batch_size = 512
 max_training_epoch = 1000
 is_plot = True
 goal_loss = 1e-4
-earlyStop_patience = 50
+earlyStop_patience = 8
 learning_rate = 0.04
 weight_decay = 1e-4
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -69,8 +69,6 @@ dynamicModel = AcrobotBmt_Dynamics()
 model = DeLanNet_inverse(Ld_Net, Lo_Net, gNet, 2,  device=device)
 q1_sample_num, q2_sample_num, qd1_sample_num, qd2_sample_num, qdd1_sample_num, qdd2_sample_num = 10, 10, 10, 10, 1, 1
 
-
-
 q1_arr = np.linspace(-pi, pi, num=q1_sample_num)
 q2_arr = np.linspace(-pi, pi, num=q2_sample_num)
 qd1_arr = np.linspace(1, 4, num=q2_sample_num)
@@ -98,6 +96,14 @@ print(output_mat.shape)
 
 
 dataset = CustomDataset(input_mat, output_mat, is_scale=True, device=device)
+
+
+import os
+file_path = os.path.join(".","model")
+file_name = "DelanNet"
+save_model(file_path, file_name, model, input_scaler=dataset.input_scaler, output_scaler=dataset.output_scaler)
+
+
 train_ratio = 1 - valid_ratio
 train_size = int(dataset.__len__() * train_ratio)
 test_size = dataset.__len__() - train_size
@@ -117,6 +123,19 @@ early_stopping = EarlyStopping(patience=earlyStop_patience, verbose=False)
 
 avg_train_losses = []  # to track the average training loss per epoch as the model trains
 avg_valid_losses = []  # to track the average validation loss per epoch as the model trains
+
+print("test forward ellapse time")
+for feature, target in train_loader:
+    start = torch.cuda.Event(enable_timing=True)
+    end = torch.cuda.Event(enable_timing=True)
+
+    start.record()
+    target_hat = model(feature[0,:].unsqueeze(0))
+    end.record()
+    # Waits for everything to finish running
+    torch.cuda.synchronize()
+    print(start.elapsed_time(end))
+
 
 print("Start Training")
 for t in range(max_training_epoch):
@@ -154,6 +173,7 @@ for t in range(max_training_epoch):
 
 model, _, _ = load_model('.', 'checkpoint', model)
 remove('checkpoint.pt')
+save_model(file_path, file_name, model, input_scaler=dataset.input_scaler, output_scaler=dataset.output_scaler)
 
 ### plot the train loss and validate loss curves
 if is_plot:

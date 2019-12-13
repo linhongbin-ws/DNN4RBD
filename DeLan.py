@@ -2,6 +2,7 @@ import torch
 from Net import *
 import numpy as np
 from Net import ReLuNet
+import time
 
 class DeLanNet_inverse(torch.nn.Module):
     def __init__(self, Ld_Net, LoNet, gNet, DOF,  device='cpu'):
@@ -12,10 +13,12 @@ class DeLanNet_inverse(torch.nn.Module):
         self._dof = DOF
         self.device = device
     def forward(self, x):
+
         q = x[:,0:self._dof]
         q.requires_grad_(True)
         qDot = x[:, self._dof:self._dof*2]
         qDDot = x[:, self._dof*2:self._dof*3]
+
         h_ld = self._LdNet(q)
         h_lo = self._LoNet(q)
         # for i in range(x.shape[0]):
@@ -35,6 +38,7 @@ class DeLanNet_inverse(torch.nn.Module):
         tau_m_mat = tau_m_mat.squeeze(1)
 
 
+
         # Calculate Coriolis and Centrifugal term
         # d(qdT H qd)/dq
         C1 = qDot.unsqueeze(1).bmm(H).bmm(qDot.unsqueeze(2))
@@ -51,6 +55,8 @@ class DeLanNet_inverse(torch.nn.Module):
         c2 = c2.squeeze(1)
         g = self._gNet(q)
         tau_mat = tau_m_mat + c1 + c2 + g
+
+        #tau_mat = tau_m_mat
         return tau_mat
 
 
