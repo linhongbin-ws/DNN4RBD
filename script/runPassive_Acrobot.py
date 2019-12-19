@@ -13,5 +13,5 @@ for i_episode in range(1):
         print(observation)
         #action = env.action_space.sample()
         action = 1
-        observation, reward, done, info = env.step(action)
+        observation, reward, done, info = env.step(0,0)
         time.sleep(0.05)

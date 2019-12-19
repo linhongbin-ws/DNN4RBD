@@ -29,7 +29,7 @@ class AcrobotBmt_Dynamics:
         self.f2 = 0.1
         self.g = 9.8
 
-    def cal_components(self, q1, q2, qd1, qd2, a):
+    def cal_components(self, q1, q2, qd1, qd2, a1, a2):
         s1 = sin(q1)
         s2 = sin(q2)
         c2 = cos(q2)
@@ -62,32 +62,39 @@ class AcrobotBmt_Dynamics:
 
 
         # action torque / Torque applied on 2nd joint
-        A = np.array([[0.],[a]])
+        A = np.array([[a1],[a2]])
         return (M,C,G,F,A)
 
     def forward(self, s_augmented, t):
-        a = s_augmented[-1]
-        s = s_augmented[:-1]
+        """
+        input:
+            s_augmented = [q1,q2, qd1,qd2,qdd1,qdd2, a1, a2]
+
+        return:
+            (qd1, qd2, ddq[0][0], ddq[1][0], 0., 0.)
+        """
+        a1,a2 = s_augmented[-2], s_augmented[-1]
+        s = s_augmented[:-2]
         q1 = s[0]
         q2 = s[1]
         qd1 = s[2]
         qd2 = s[3]
         qd = np.array([[qd1], [qd2]])
-        M,C,G,F,A = self.cal_components(q1,q2,qd1,qd2,a)
+        M,C,G,F,A = self.cal_components(q1,q2,qd1,qd2,a1,a2)
         tmp = A-C.dot(qd)-G-F.dot(qd)
         ddq = np.linalg.inv(M).dot(tmp)
-        return (qd1, qd2, ddq[0][0], ddq[1][0], 0.)
+        return (qd1, qd2, ddq[0][0], ddq[1][0], 0., 0.)
 
     def inverse(self, s_augmented):
         """
         input:
-            s_augmented = [q, qd, qdd, a]
+            s_augmented = [q1,q2, qd1,qd2,qdd1,qdd2, a1, a2]
 
         return:
             (tau_1, tau_2)
         """
-        a = s_augmented[-1]
-        s = s_augmented[:-1]
+        a1, a2 = s_augmented[-2], s_augmented[-1]
+        s = s_augmented[:-2]
         q1 = s[0]
         q2 = s[1]
         qd1 = s[2]
@@ -97,23 +104,23 @@ class AcrobotBmt_Dynamics:
         qdd2 = s[5]
         qdd = np.array([[qdd1], [qdd2]])
 
-        M, C, G, F, A = self.cal_components(q1, q2, qd1, qd2, a)
+        M, C, G, F, A = self.cal_components(q1, q2, qd1, qd2, a1, a2)
         tau = A-C.dot(qd)-G-F.dot(qd)-M.dot(qdd)
         return (tau[0][0], tau[1][0])
 
     def inverse_Inertia(self, s_augmented):
-        a = s_augmented[-1]
-        s = s_augmented[:-1]
+        a1, a2 = s_augmented[-2], s_augmented[-1]
+        s = s_augmented[:-2]
         q1 = s[0]
         q2 = s[1]
         qd1 = s[2]
         qd2 = s[3]
-        qd = np.array([[qd1], [qd2]])
+        #qd = np.array([[qd1], [qd2]])
         qdd1 = s[4]
         qdd2 = s[5]
         qdd = np.array([[qdd1], [qdd2]])
 
-        M, C, G, F, A = self.cal_components(q1, q2, qd1, qd2, a)
+        M, C, G, F, A = self.cal_components(q1, q2, qd1, qd2, a1, a2)
         tau = M.dot(qdd)
         return (tau[0][0], tau[1][0])
 
@@ -176,9 +183,10 @@ class AcrobotBmt(core.Env):
     MAX_VEL_1 = 4 * pi
     MAX_VEL_2 = 9 * pi
 
-    AVAIL_TORQUE = [-1., 0., +1]
+    #AVAIL_TORQUE = [-1., 0., +1]
 
-    torque_noise_max = 0.
+    torque_noise_max1 = 0.
+    torque_noise_max2 = 0.
 
     #: use dynamics equations from the nips paper or the book
     book_or_nips = "book"
@@ -194,8 +202,8 @@ class AcrobotBmt(core.Env):
         self.viewer = None
         high = np.array([1.0, 1.0, 1.0, 1.0, self.MAX_VEL_1, self.MAX_VEL_2])
         low = -high
-        self.observation_space = spaces.Box(low=low, high=high, dtype=np.float32)
-        self.action_space = spaces.Discrete(3)
+        #self.observation_space = spaces.Box(low=low, high=high, dtype=np.float32)
+        #self.action_space = spaces.Discrete(3)
         self.state = None
         self.seed()
 
@@ -208,17 +216,25 @@ class AcrobotBmt(core.Env):
         self.state = np.radians(np.array([[80],[30],[0],[0]]))
         return self._get_ob()
 
-    def step(self, a):
+    def step(self, a1, a2, isActive1=True, isActive2=True):
         s = self.state
-        torque = self.AVAIL_TORQUE[a]
+        # torque = self.AVAIL_TORQUE[a]
 
         # Add noise to the force action
-        if self.torque_noise_max > 0:
-            torque += self.np_random.uniform(-self.torque_noise_max, self.torque_noise_max)
+        if self.torque_noise_max1 > 0:
+            a1 += self.np_random.uniform(-self.torque_noise_max1, self.torque_noise_max1)
+        if self.torque_noise_max2 > 0:
+            a2 += self.np_random.uniform(-self.torque_noise_max2, self.torque_noise_max2)
+
+        if not isActive1:
+            a1 = 0
+        if not isActive2:
+            a2 = 0
+
 
         # Now, augment the state with our force action so it can be passed to
         # _dsdt
-        s_augmented = np.append(s, torque)
+        s_augmented = np.append(s, np.array([a1, a2]))
 
         ns = rk4(self.model.forward, s_augmented, [0, self.dt])
         # only care about final timestep of integration returned by integrator
@@ -233,14 +249,14 @@ class AcrobotBmt(core.Env):
         ns[1] = wrap(ns[1], -pi, pi)
         ns[2] = bound(ns[2], -self.MAX_VEL_1, self.MAX_VEL_1)
         ns[3] = bound(ns[3], -self.MAX_VEL_2, self.MAX_VEL_2)
-        self.state = ns
+        self.state = ns.reshape(4,1)
         terminal = self._terminal()
         reward = -1. if not terminal else 0.
         return (self._get_ob(), reward, terminal, {})
 
     def _get_ob(self):
         s = self.state
-        return np.array([cos(s[0]), sin(s[0]), cos(s[1]), sin(s[1]), s[2], s[3]])
+        return np.array([s[0], s[1], s[2], s[3]])
 
     def _terminal(self):
         s = self.state

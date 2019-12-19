@@ -86,7 +86,7 @@ for q1 in q1_arr:
             for qd2 in qd2_arr:
                 for qdd1 in qdd1_arr:
                     for qdd2 in qdd2_arr:
-                        s_augmented = [q1, q2, qd1, qd2, qdd1, qdd2, 0.]
+                        s_augmented = [q1, q2, qd1, qd2, qdd1, qdd2, 0., 0.]
                         tau1, tau2 = dynamicModel.inverse(s_augmented)
                         input_mat[cnt,0], input_mat[cnt,1],input_mat[cnt,2], input_mat[cnt,3], input_mat[cnt,4], input_mat[cnt,5] = q1, q2, qd1, qd2, qdd1, qdd2
                         output_mat[cnt, 0], output_mat[cnt, 1] = tau1, tau2
