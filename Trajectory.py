@@ -19,7 +19,7 @@ class CosTraj():
         return q, qd, qdd
 
 
-def genTrajectoryData(controller, traj, sampleNum = 20000, savePath='.',saveFig=True, dt=0.01):
+def runTrajectory(controller, traj, sampleNum = 20000, savePath='.',saveFig=True, dt=0.01):
     env = gym.make('acrobotBmt-v0')
     env.dt = dt
     obsve = env.reset()
@@ -47,7 +47,7 @@ def genTrajectoryData(controller, traj, sampleNum = 20000, savePath='.',saveFig=
         tCount += env.dt
         env.render()
         q, qd, qdd = traj.forward(tCount)
-        a = controller.forward(s=[obsve[0, 0], obsve[1, 0], obsve[2, 0], obsve[3, 0]], sDes=[q[0], q[1], qd[0], qd[1]])
+        a = controller.forward(s=[obsve[0, 0], obsve[1, 0], obsve[2, 0], obsve[3, 0], obsve[4, 0], obsve[5, 0]], sDes=[q[0], q[1], qd[0], qd[1]])
         obsve, reward, done, info = env.step(a[0], a[1])
         t_list.append(tCount)
         q_des_dict['J1'].append(q[0])
@@ -58,12 +58,8 @@ def genTrajectoryData(controller, traj, sampleNum = 20000, savePath='.',saveFig=
         qdot_dict['J2'].append(obsve[3, 0])
         a_dict['J1'].append(a[0])
         a_dict['J2'].append(a[1])
-        if t==0:
-            qddot_dict['J1'].append(0.)
-            qddot_dict['J2'].append(0.)
-        else:
-            qddot_dict['J1'].append(qdot_dict['J1'][-1]-qdot_dict['J1'][-2])
-            qddot_dict['J2'].append(qdot_dict['J2'][-1]-qdot_dict['J2'][-2])
+        qddot_dict['J1'].append(obsve[4, 0])
+        qddot_dict['J2'].append(obsve[5, 0])
 
         # time.sleep(0.05)
     env.close()

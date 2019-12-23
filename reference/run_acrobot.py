@@ -34,7 +34,7 @@ def loop_func(train_data_path, valid_data_path, test_data_path, use_net):
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
     early_stopping = EarlyStopping(patience=earlyStop_patience, verbose=False)
 
-    ### Train model
+    ### Train data
     model = train(model, train_loader, valid_loader, optimizer, loss_fn, early_stopping, max_training_epoch, goal_loss, is_plot=False)
 
     ### Get the predict output from test data and save to Matlab file

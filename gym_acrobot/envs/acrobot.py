@@ -205,6 +205,7 @@ class AcrobotBmt(core.Env):
         #self.observation_space = spaces.Box(low=low, high=high, dtype=np.float32)
         #self.action_space = spaces.Discrete(3)
         self.state = None
+        self.diffState = None
         self.seed()
 
     def seed(self, seed=None):
@@ -214,6 +215,7 @@ class AcrobotBmt(core.Env):
     def reset(self):
         #self.state = self.np_random.uniform(low=-1.0, high=1.0, size=(4,))
         self.state = np.radians(np.array([[80],[30],[0],[0]]))
+        self.diffState = np.array([self.state[2,0], self.state[3,0], [0], [0]])
         return self._get_ob()
 
     def step(self, a1, a2, isActive1=True, isActive2=True):
@@ -249,6 +251,7 @@ class AcrobotBmt(core.Env):
         ns[1] = wrap(ns[1], -pi, pi)
         ns[2] = bound(ns[2], -self.MAX_VEL_1, self.MAX_VEL_1)
         ns[3] = bound(ns[3], -self.MAX_VEL_2, self.MAX_VEL_2)
+        self.diffState = ns.reshape(4,1) - self.state
         self.state = ns.reshape(4,1)
         terminal = self._terminal()
         reward = -1. if not terminal else 0.
@@ -256,7 +259,7 @@ class AcrobotBmt(core.Env):
 
     def _get_ob(self):
         s = self.state
-        return np.array([s[0], s[1], s[2], s[3]])
+        return np.array([s[0], s[1], s[2], s[3],self.diffState[2], self.diffState[3]])
 
     def _terminal(self):
         s = self.state
