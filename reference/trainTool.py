@@ -30,9 +30,9 @@ class AutoEncoder(torch.nn.Module):
 
 def train(model, train_loader, valid_loader, optimizer, loss_fn, early_stopping, max_training_epoch, goal_loss, is_plot=True):
     train_losses = []
-    valid_losses = []  # to track the validation loss as the model trains
-    avg_train_losses = []  # to track the average training loss per epoch as the model trains
-    avg_valid_losses = []  # to track the average validation loss per epoch as the model trains
+    valid_losses = []  # to track the validation loss as the data trains
+    avg_train_losses = []  # to track the average training loss per epoch as the data trains
+    avg_valid_losses = []  # to track the average validation loss per epoch as the data trains
 
     for t in range(max_training_epoch):
         train_losses = []
@@ -45,7 +45,7 @@ def train(model, train_loader, valid_loader, optimizer, loss_fn, early_stopping,
             optimizer.step()  # apply gradients
             train_losses.append(loss.item())
         for feature, target in valid_loader:
-            # forward pass: compute predicted outputs by passing inputs to the model
+            # forward pass: compute predicted outputs by passing inputs to the data
             target_hat = model(feature)
             loss = loss_fn(target_hat, target)
             valid_losses.append(loss.item())
@@ -62,7 +62,7 @@ def train(model, train_loader, valid_loader, optimizer, loss_fn, early_stopping,
         early_stopping(valid_loss, model)
         if early_stopping.early_stop:
             print("Early stopping at Epoch")
-            # update the model with checkpoint
+            # update the data with checkpoint
             break
 
     model, _, _ = load_model('.', 'checkpoint', model)
@@ -86,15 +86,15 @@ def train(model, train_loader, valid_loader, optimizer, loss_fn, early_stopping,
         plt.legend()
         plt.tight_layout()
         plt.show()
-        # fig.savefig(pjoin('model','LogNet',model_file_name+'.png'), bbox_inches='tight')
+        # fig.savefig(pjoin('data','LogNet',model_file_name+'.png'), bbox_inches='tight')
 
     return model
 
 def multiTask_train(modelList, train_loaderList, valid_loaderList, optimizer, loss_fn, early_stopping, max_training_epoch, is_plot=True):
     train_losses = []
-    valid_losses = []  # to track the validation loss as the model trains
-    avg_train_losses = []  # to track the average training loss per epoch as the model trains
-    avg_valid_losses = []  # to track the average validation loss per epoch as the model trains
+    valid_losses = []  # to track the validation loss as the data trains
+    avg_train_losses = []  # to track the average training loss per epoch as the data trains
+    avg_valid_losses = []  # to track the average validation loss per epoch as the data trains
     task_num = len(modelList)
     for t in range(max_training_epoch):
         train_losses = []
@@ -149,7 +149,7 @@ def multiTask_train(modelList, train_loaderList, valid_loaderList, optimizer, lo
         plt.legend()
         plt.tight_layout()
         plt.show()
-        # fig.savefig(pjoin('model','LogNet',model_file_name+'.png'), bbox_inches='tight')
+        # fig.savefig(pjoin('data','LogNet',model_file_name+'.png'), bbox_inches='tight')
 
     return modelList
 
@@ -157,9 +157,9 @@ def multiTask_train(modelList, train_loaderList, valid_loaderList, optimizer, lo
 
 def pretrain(model, train_loader, valid_loader, learning_rate, earlyStop_patience, max_training_epoch):
     train_losses = []
-    valid_losses = []  # to track the validation loss as the model trains
-    avg_train_losses = []  # to track the average training loss per epoch as the model trains
-    avg_valid_losses = []  # to track the average validation loss per epoch as the model trains
+    valid_losses = []  # to track the validation loss as the data trains
+    avg_train_losses = []  # to track the average training loss per epoch as the data trains
+    avg_valid_losses = []  # to track the average validation loss per epoch as the data trains
 
     # number of sequence list = 2*layer_num+1
     squence_list = list(model.children())
@@ -202,7 +202,7 @@ def pretrain(model, train_loader, valid_loader, learning_rate, earlyStop_patienc
                 train_losses.append(loss.item())
 
             for feature, target in valid_loader:
-                # forward pass: compute predicted outputs by passing inputs to the model
+                # forward pass: compute predicted outputs by passing inputs to the data
                 if isinstance(based_model, list):
                     y_hat = feature
                 else:
@@ -241,7 +241,7 @@ def pretrain(model, train_loader, valid_loader, learning_rate, earlyStop_patienc
         plt.legend()
         plt.tight_layout()
         plt.show()
-        # fig.savefig(pjoin('model','LogNet',model_file_name+'.png'), bbox_inches='tight')
+        # fig.savefig(pjoin('data','LogNet',model_file_name+'.png'), bbox_inches='tight')
 
 
         based_layer_list.extend(train_layer_list[0:2])

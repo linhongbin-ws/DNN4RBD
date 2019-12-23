@@ -99,7 +99,7 @@ dataset = CustomDataset(input_mat, output_mat, is_scale=True, device=device)
 
 
 import os
-file_path = os.path.join(".","model")
+file_path = os.path.join(".","data")
 file_name = "DelanNet"
 save_model(file_path, file_name, model, input_scaler=dataset.input_scaler, output_scaler=dataset.output_scaler)
 
@@ -121,8 +121,8 @@ loss_fn = torch.nn.SmoothL1Loss()
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
 early_stopping = EarlyStopping(patience=earlyStop_patience, verbose=False)
 
-avg_train_losses = []  # to track the average training loss per epoch as the model trains
-avg_valid_losses = []  # to track the average validation loss per epoch as the model trains
+avg_train_losses = []  # to track the average training loss per epoch as the data trains
+avg_valid_losses = []  # to track the average validation loss per epoch as the data trains
 
 print("test forward ellapse time")
 for feature, target in train_loader:
@@ -150,7 +150,7 @@ for t in range(max_training_epoch):
         optimizer.step()  # apply gradients
         train_losses.append(loss.item())
     for feature, target in valid_loader:
-        # forward pass: compute predicted outputs by passing inputs to the model
+        # forward pass: compute predicted outputs by passing inputs to the data
         target_hat = model(feature)
         loss = loss_fn(target_hat, target)
         valid_losses.append(loss.item())
@@ -168,7 +168,7 @@ for t in range(max_training_epoch):
     early_stopping(valid_loss, model)
     if early_stopping.early_stop:
         print("Early stopping at Epoch")
-        # update the model with checkpoint
+        # update the data with checkpoint
         break
 
 model, _, _ = load_model('.', 'checkpoint', model)
