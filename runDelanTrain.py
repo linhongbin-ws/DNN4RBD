@@ -30,10 +30,11 @@ print("Using hardware for training model: ",device)
 controller = PD_Controller()
 traj = CosTraj()
 traj.A = 1
-sampleNum = 10000
+sampleNum = 2000
 
 
 model = get_model(netType, device)
+model = model.to(device)
 q_dict, qdot_dict, qddot_dict, a_dict = runTrajectory(sampleNum = sampleNum, controller = controller, traj=traj, savePath=save_path, isShowPlot=False, isRender=False)
 input_mat = np.array([q_dict['J1'],q_dict['J2'],qdot_dict['J1'],qdot_dict['J2'],qddot_dict['J1'],qddot_dict['J2']]).transpose()
 output_mat = np.array([a_dict['J1'],a_dict['J2']]).transpose()
@@ -109,6 +110,7 @@ for t in range(max_training_epoch):
 
 model, _, _ = load_model('.', 'checkpoint', model)
 remove('checkpoint.pt')
+model = model.to('cpu')
 save_model(path.join(save_path, 'model'), 'DeLan', model, input_scaler=input_scaler, output_scaler=output_scaler)
 
 ### plot the train loss and validate loss curves

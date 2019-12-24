@@ -25,7 +25,7 @@ pd_dynamic_controller = PD_Dynamic_Controller(pd_controller, dynamic_controller)
 
 traj = CosTraj()
 traj.A = 1
-q_dict, qdot_dict, qddot_dict, a_dict = runTrajectory(pd_dynamic_controller, traj, sampleNum = 20000, savePath=save_path,saveFig=True, dt=0.01, isShowPlot=True,isRender=True)
+q_dict, qdot_dict, qddot_dict, a_dict = runTrajectory(pd_dynamic_controller, traj, sampleNum = 2000, savePath=save_path,saveFig=True, dt=0.01, isShowPlot=True,isRender=False)
 
 
 

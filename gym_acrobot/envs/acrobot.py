@@ -251,7 +251,7 @@ class AcrobotBmt(core.Env):
         ns[1] = wrap(ns[1], -pi, pi)
         ns[2] = bound(ns[2], -self.MAX_VEL_1, self.MAX_VEL_1)
         ns[3] = bound(ns[3], -self.MAX_VEL_2, self.MAX_VEL_2)
-        self.diffState = ns.reshape(4,1) - self.state
+        self.diffState = (ns.reshape(4,1) - self.state)/self.dt
         self.state = ns.reshape(4,1)
         terminal = self._terminal()
         reward = -1. if not terminal else 0.
