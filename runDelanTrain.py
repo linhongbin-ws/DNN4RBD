@@ -1,9 +1,4 @@
 import numpy as np
-import platform
-if platform.system()=='Darwin':
-    import matplotlib
-    matplotlib.use('TkAgg')
-
 import matplotlib.pyplot as plt
 from os import remove
 from reference.regularizeTool import EarlyStopping
@@ -11,7 +6,7 @@ from loadModel import load_model, save_model, get_model
 from Net import *
 import time
 from loadData import createLoader
-from Trajectory import genTrajectoryData
+from Trajectory import runTrajectory
 from os import path
 from Controller import PD_Controller
 from Trajectory import CosTraj
@@ -37,7 +32,7 @@ traj.A = 1
 
 
 model = get_model(netType, device)
-q_dict, qdot_dict, qddot_dict, a_dict = genTrajectoryData(sampleNum = 200, controller = controller, traj=traj, savePath=save_path)
+q_dict, qdot_dict, qddot_dict, a_dict = runTrajectory(sampleNum = 200, controller = controller, traj=traj, savePath=save_path)
 input_mat = np.array([q_dict['J1'],q_dict['J2'],qdot_dict['J1'],qdot_dict['J2'],qddot_dict['J1'],qddot_dict['J2']]).transpose()
 output_mat = np.array([a_dict['J1'],a_dict['J2']]).transpose()
 print(input_mat.shape)
@@ -132,4 +127,4 @@ if is_plot:
     plt.legend()
     plt.tight_layout()
     plt.show()
-    fig.savefig(path.join(save_path, 'trajectory.png'))
+    fig.savefig(path.join(save_path, 'trainLoss.png'))

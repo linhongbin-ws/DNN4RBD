@@ -1,6 +1,5 @@
 import numpy as np
 import gym
-from gym import wrappers
 import gym_acrobot
 import time
 from Controller import PD_Controller
@@ -47,7 +46,7 @@ def runTrajectory(controller, traj, sampleNum = 20000, savePath='.',saveFig=True
         tCount += env.dt
         env.render()
         q, qd, qdd = traj.forward(tCount)
-        a = controller.forward(s=[obsve[0, 0], obsve[1, 0], obsve[2, 0], obsve[3, 0], obsve[4, 0], obsve[5, 0]], sDes=[q[0], q[1], qd[0], qd[1]])
+        a = controller.forward(s=[obsve[0, 0], obsve[1, 0], obsve[2, 0], obsve[3, 0], obsve[4, 0], obsve[5, 0]], sDes=[q[0], q[1], qd[0], qd[1], qdd[0], qdd[1]])
         obsve, reward, done, info = env.step(a[0], a[1])
         t_list.append(tCount)
         q_des_dict['J1'].append(q[0])
@@ -61,7 +60,7 @@ def runTrajectory(controller, traj, sampleNum = 20000, savePath='.',saveFig=True
         qddot_dict['J1'].append(obsve[4, 0])
         qddot_dict['J2'].append(obsve[5, 0])
 
-        # time.sleep(0.05)
+        #time.sleep(0.05)
     env.close()
     fig = plt.figure()
     plt.subplot(211)
@@ -72,7 +71,6 @@ def runTrajectory(controller, traj, sampleNum = 20000, savePath='.',saveFig=True
     plt.plot(t_list, q_des_dict['J2'], 'r')
     plt.plot(t_list, q_dict['J2'], 'k')
     plt.legend(['Desired Trajectory','Measured Trajectory'],loc='upper right')
-
     plt.show()
     if saveFig:
         fig.savefig(path.join(savePath,'trajectory.png'))

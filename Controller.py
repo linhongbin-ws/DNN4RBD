@@ -44,7 +44,7 @@ class Dynamic_Controller():
         feature_norm = torch.from_numpy(self.input_scaler.transform(input_mat)).to('cpu').float()
         target_norm_hat = self.model(feature_norm)
         target_hat_mat = self.output_scaler.inverse_transform(target_norm_hat.detach().numpy())
-        return [target_hat_mat[0,i] for i in target_hat_mat.shape[1]]
+        return [target_hat_mat[0,i] for i in range(target_hat_mat.shape[1])]
 
 class PD_Dynamic_Controller():
     def __init__(self, basic_controller, dynamic_controller):
@@ -54,9 +54,9 @@ class PD_Dynamic_Controller():
         """
         mapping state to action
         :param state s = [q1, q2, qd1, qd2, qdd1, qdd2]
-               sDes = [q1Des, q2Des, qd1Des, qd2Des]
+               sDes = [q1Des, q2Des, qd1Des, qd2Des, qdd1Des, qdd2Des]
         :return: a = [a1, a2]
         """
-        [tau1, tau2] = self.basic_controller(s[0:3], sDes)
-        [tau1_res, tau2_res] = self.dynamic_controller(s)
-        return [tau1+tau1_res, tau2_res]
+        [tau1, tau2] = self.basic_controller.forward(s, sDes)
+        [tau1_res, tau2_res] = self.dynamic_controller.forward(sDes)
+        return [tau1+tau1_res, tau2+tau2_res]
