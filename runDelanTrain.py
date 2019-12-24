@@ -26,13 +26,15 @@ earlyStop_patience = 8
 learning_rate = 0.04
 weight_decay = 1e-4
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print("Using hardware for training model: ",device)
 controller = PD_Controller()
 traj = CosTraj()
 traj.A = 1
+sampleNum = 10000
 
 
 model = get_model(netType, device)
-q_dict, qdot_dict, qddot_dict, a_dict = runTrajectory(sampleNum = 200, controller = controller, traj=traj, savePath=save_path)
+q_dict, qdot_dict, qddot_dict, a_dict = runTrajectory(sampleNum = sampleNum, controller = controller, traj=traj, savePath=save_path, isShowPlot=False, isRender=False)
 input_mat = np.array([q_dict['J1'],q_dict['J2'],qdot_dict['J1'],qdot_dict['J2'],qddot_dict['J1'],qddot_dict['J2']]).transpose()
 output_mat = np.array([a_dict['J1'],a_dict['J2']]).transpose()
 print(input_mat.shape)

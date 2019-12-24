@@ -18,11 +18,12 @@ class CosTraj():
         return q, qd, qdd
 
 
-def runTrajectory(controller, traj, sampleNum = 20000, savePath='.',saveFig=True, dt=0.01):
+def runTrajectory(controller, traj, sampleNum = 20000, savePath='.',saveFig=True, dt=0.01, isShowPlot=True,isRender=True):
     env = gym.make('acrobotBmt-v0')
     env.dt = dt
     obsve = env.reset()
-    env.render()
+    if isRender:
+        env.render()
     time.sleep(2)
     tCount = 0
 
@@ -42,9 +43,11 @@ def runTrajectory(controller, traj, sampleNum = 20000, savePath='.',saveFig=True
     qddot_dict['J2'] = []
     a_dict['J1'] = []
     a_dict['J2'] = []
+    progress_cnt = 0
     for t in range(sampleNum):
         tCount += env.dt
-        env.render()
+        if isRender:
+            env.render()
         q, qd, qdd = traj.forward(tCount)
         a = controller.forward(s=[obsve[0, 0], obsve[1, 0], obsve[2, 0], obsve[3, 0], obsve[4, 0], obsve[5, 0]], sDes=[q[0], q[1], qd[0], qd[1], qdd[0], qdd[1]])
         obsve, reward, done, info = env.step(a[0], a[1])
@@ -59,6 +62,9 @@ def runTrajectory(controller, traj, sampleNum = 20000, savePath='.',saveFig=True
         a_dict['J2'].append(a[1])
         qddot_dict['J1'].append(obsve[4, 0])
         qddot_dict['J2'].append(obsve[5, 0])
+        progress = int((t+1)*100/sampleNum)
+        progress_cnt = progress if progress_cnt<progress else progress
+        print("run trajectory(",progress_cnt,"/100)")
 
         #time.sleep(0.05)
     env.close()
@@ -71,7 +77,8 @@ def runTrajectory(controller, traj, sampleNum = 20000, savePath='.',saveFig=True
     plt.plot(t_list, q_des_dict['J2'], 'r')
     plt.plot(t_list, q_dict['J2'], 'k')
     plt.legend(['Desired Trajectory','Measured Trajectory'],loc='upper right')
-    plt.show()
+    if isShowPlot:
+        plt.show()
     if saveFig:
         fig.savefig(path.join(savePath,'trajectory.png'))
 
