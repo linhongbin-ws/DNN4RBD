@@ -85,16 +85,15 @@ class AcrobotBmt_Dynamics:
         ddq = np.linalg.inv(M).dot(tmp)
         return (qd1, qd2, ddq[0][0], ddq[1][0], 0., 0.)
 
-    def inverse(self, s_augmented):
+    def inverse(self, s):
         """
         input:
-            s_augmented = [q1,q2, qd1,qd2,qdd1,qdd2, a1, a2]
+            s_augmented = [q1,q2, qd1,qd2,qdd1,qdd2]
 
         return:
             (tau_1, tau_2)
         """
-        a1, a2 = s_augmented[-2], s_augmented[-1]
-        s = s_augmented[:-2]
+        a1, a2 = 0.,0.
         q1 = s[0]
         q2 = s[1]
         qd1 = s[2]
@@ -105,24 +104,33 @@ class AcrobotBmt_Dynamics:
         qdd = np.array([[qdd1], [qdd2]])
 
         M, C, G, F, A = self.cal_components(q1, q2, qd1, qd2, a1, a2)
-        tau = A-C.dot(qd)-G-F.dot(qd)-M.dot(qdd)
+        tau = C.dot(qd)+G+F.dot(qd)+M.dot(qdd)
         return (tau[0][0], tau[1][0])
 
-    def inverse_Inertia(self, s_augmented):
-        a1, a2 = s_augmented[-2], s_augmented[-1]
-        s = s_augmented[:-2]
+    def inverse_all(self, s):
+        """
+        input:
+            s_augmented = [q1,q2, qd1,qd2,qdd1,qdd2]
+
+        return:
+            (tau_1, tau_2)
+        """
+        a1, a2 = 0.,0.
         q1 = s[0]
         q2 = s[1]
         qd1 = s[2]
         qd2 = s[3]
-        #qd = np.array([[qd1], [qd2]])
+        qd = np.array([[qd1], [qd2]])
         qdd1 = s[4]
         qdd2 = s[5]
         qdd = np.array([[qdd1], [qdd2]])
 
         M, C, G, F, A = self.cal_components(q1, q2, qd1, qd2, a1, a2)
-        tau = M.dot(qdd)
-        return (tau[0][0], tau[1][0])
+        m = M.dot(qdd).reshape(2)
+        c = C.dot(qd)+F.dot(qd)
+        c = c.reshape(2)
+        g = G.reshape(2)
+        return m, c, g
 
 class AcrobotBmt(core.Env):
 

@@ -12,7 +12,7 @@ class DeLanNet_inverse(torch.nn.Module):
         self._gNet = gNet
         self._dof = DOF
         self.device = device
-    def forward(self, x):
+    def cal_func(self, x):
 
         q = x[:,0:self._dof]
         q.requires_grad_(True)
@@ -54,10 +54,27 @@ class DeLanNet_inverse(torch.nn.Module):
         c2 = qDot.unsqueeze(1).bmm(dH)
         c2 = c2.squeeze(1)
         g = self._gNet(q)
-        tau_mat = tau_m_mat + c1 + c2 + g
+        # tau_mat = tau_m_mat + c1 + c2 + g
+        #
+        # #tau_mat = tau_m_mat
+        return tau_m_mat, c1+c2, g
+    def forward(self, x):
+        m, c, g = self.cal_func(x)
+        return m+c+g
+    def forward_m(self,x):
+        m, _, _ = self.cal_func(x)
+        return m
+    def forward_c(self,x):
+        _, c, _ = self.cal_func(x)
+        return c
+    def forward_g(self,x):
+        _, _, g = self.cal_func(x)
+        return g
 
-        #tau_mat = tau_m_mat
-        return tau_mat
+    def forward_all(self,x):
+        m, c, g = self.cal_func(x)
+        return m, c, g
+
 
 
 class DerivativeNet(torch.nn.Module):

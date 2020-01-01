@@ -10,7 +10,6 @@ pi = np.pi
 
 
 def loop_func(netType, root_path):
-    netType = 'DeLan'
     save_path = path.join(root_path, netType)
     load_path = save_path
     device = torch.device('cpu')
@@ -22,8 +21,10 @@ def loop_func(netType, root_path):
     pd_dynamic_controller = PD_Dynamic_Controller(pd_controller, dynamic_controller)
     traj = CosTraj()
     traj.A = 1
-    q_dict, qdot_dict, qddot_dict, a_dict = runTrajectory(pd_dynamic_controller, traj, sampleNum = 2000, savePath=save_path,saveFig=True,
-                                                          dt=0.01, isShowPlot=True,isRender=False,saveName='testTrajectory')
+    _, _, _, _, _ = runTrajectory(pd_dynamic_controller, traj, sampleNum = 2000, savePath=save_path,saveFig=True,
+                                                          dt=0.01, isShowPlot=True,isRender=False,saveName='testTrajectory',isReturnAllForce=True)
+
+    print("finish test script!")
 
 
 root_path = path.join('.', 'data', 'trackTrajectory')
