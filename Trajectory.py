@@ -4,7 +4,7 @@ import gym_acrobot
 import time
 from Controller import PD_Controller
 import matplotlib.pyplot as plt
-from os import path
+from os import path, mkdir
 class CosTraj():
     def __init__(self):
         self.A = np.pi
@@ -18,7 +18,7 @@ class CosTraj():
         return q, qd, qdd
 
 
-def runTrajectory(controller, traj, sampleNum = 20000, savePath='.',saveFig=True, dt=0.01, isShowPlot=True,isRender=True):
+def runTrajectory(controller, traj, sampleNum = 20000, savePath='.',saveFig=True, dt=0.01, isShowPlot=True,isRender=True, saveName=None):
     env = gym.make('acrobotBmt-v0')
     env.dt = dt
     obsve = env.reset()
@@ -80,7 +80,11 @@ def runTrajectory(controller, traj, sampleNum = 20000, savePath='.',saveFig=True
     if isShowPlot:
         plt.show()
     if saveFig:
-        fig.savefig(path.join(savePath,'trajectory.png'))
+        if not path.isdir(savePath):
+            mkdir(savePath)
+        if saveName is None:
+            saveName = 'tractory'
+        fig.savefig(path.join(savePath,saveName+'.png'))
 
 
     return q_dict, qdot_dict, qddot_dict, a_dict

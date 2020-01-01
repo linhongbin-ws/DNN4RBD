@@ -7,20 +7,21 @@ from Net import *
 import time
 from loadData import createLoader
 from Trajectory import runTrajectory
-from os import path
+from os import path, mkdir
 from Controller import PD_Controller
 from Trajectory import CosTraj
 pi = np.pi
 
-def loop_func(netType, save_path):
+def loop_func(netType, root_save_path):
 
     ## hyper parameters for training configuration
+    save_path = path.join(root_save_path,netType)
     valid_ratio = 0.2
     batch_size = 512
     max_training_epoch = 1000
     is_plot = True
     goal_loss = 1e-4
-    earlyStop_patience = 8
+    earlyStop_patience = 2
     learning_rate = 0.04
     weight_decay = 1e-4
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -28,16 +29,19 @@ def loop_func(netType, save_path):
     controller = PD_Controller()
     traj = CosTraj()
     traj.A = 1
-    sampleNum = 2000
+    sampleNum = 200
 
     ## run simulation for acrobot
     model = get_model(netType, device)
     model = model.to(device)
-    q_dict, qdot_dict, qddot_dict, a_dict = runTrajectory(sampleNum = sampleNum, controller = controller, traj=traj, savePath=save_path, isShowPlot=False, isRender=False)
+    q_dict, qdot_dict, qddot_dict, a_dict = runTrajectory(sampleNum = sampleNum, controller = controller, traj=traj,
+                                                          savePath=save_path, isShowPlot=False, isRender=False, saveName='trainTrajectory')
     input_mat = np.array([q_dict['J1'],q_dict['J2'],qdot_dict['J1'],qdot_dict['J2'],qddot_dict['J1'],qddot_dict['J2']]).transpose()
     output_mat = np.array([a_dict['J1'],a_dict['J2']]).transpose()
     print(input_mat.shape)
     print(output_mat.shape)
+    if not path.isdir(save_path):
+        mkdir(save_path)
     np.savez(path.join(save_path,'trainData'), input_mat, output_mat)
 
     ## data loader for training. good solution for loading big data
@@ -125,5 +129,5 @@ def loop_func(netType, save_path):
     print("Finish training!")
 
 netType = 'DeLan'
-save_path = path.join('.', 'data', 'trackTrajectory', 'train')
-loop_func(netType)
+root_save_path = path.join('.', 'data', 'trackTrajectory')
+loop_func(netType, root_save_path)
