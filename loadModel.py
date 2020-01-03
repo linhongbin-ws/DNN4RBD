@@ -1,7 +1,7 @@
 import numpy as np
 from os import path, mkdir
 from Net import *
-from DeLan import DeLanNet_inverse
+from DeLan import *
 def get_model(use_net, device='cpu'):
     ### define net for acrobot
     if use_net == 'DeLan':
@@ -12,11 +12,15 @@ def get_model(use_net, device='cpu'):
         Lo_Net = ReLuNet(2, [10, 10], lo_size).to(device)
         gNet = ReLuNet(2, [10], 2).to(device)
         model = DeLanNet_inverse(Ld_Net, Lo_Net, gNet, 2, device=device)
+        return model
+    if use_net == 'DeLan_Sin':
+        model = Delan_Sin(2, device)
+        return model
     else:
         raise Exception(use_net + 'is not support')
 
 
-    return model
+
 
 def save_model(file_path, file_name, model, input_scaler=None, output_scaler=None):
     if not path.exists(file_path):

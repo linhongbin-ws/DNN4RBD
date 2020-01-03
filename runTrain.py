@@ -9,7 +9,7 @@ from loadData import createLoader
 from Trajectory import runTrajectory
 from os import path, mkdir
 from Controller import PD_Controller
-from Trajectory import CosTraj
+from Trajectory import CosTraj, ValinaCosTraj
 pi = np.pi
 
 def loop_func(netType, root_save_path):
@@ -21,21 +21,24 @@ def loop_func(netType, root_save_path):
     max_training_epoch = 1000
     is_plot = True
     goal_loss = 1e-4
-    earlyStop_patience = 2
+    earlyStop_patience = 8
     learning_rate = 0.04
     weight_decay = 1e-4
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print("Using hardware for training model: ",device)
     controller = PD_Controller()
-    traj = CosTraj()
-    traj.A = 1
-    sampleNum = 200
+    for i in range(2):
+        controller.kp[i] = controller.kp[i]*10
+        controller.kd[i] = controller.kd[i] * 2
+    traj = ValinaCosTraj(A_list_list=[[0.1, 0.2, 0.4, 1], [0.1, 0.2, 0.4, 1]], w_list_list=[[6, 4, 2, 1], [6, 4, 2, 1]],
+                         b_list_list=[[0, 0, 0, 0], [0.5, 0.5, 0.5, 0.5]])
+    sampleNum = 2000
 
     ## run simulation for acrobot
     model = get_model(netType, device)
     model = model.to(device)
-    q_dict, qdot_dict, qddot_dict, a_dict = runTrajectory(sampleNum = sampleNum, controller = controller, traj=traj,
-                                                          savePath=save_path, isShowPlot=False, isRender=False, saveName='trainTrajectory')
+    q_dict, qdot_dict, qddot_dict, a_dict = runTrajectory(sampleNum = sampleNum, controller = controller, traj=traj, sim_hz=100,
+                                                          savePath=save_path, isShowPlot=False, isRender=False, saveName='trainTrajectory', sample_ratio=5)
     input_mat = np.array([q_dict['J1'],q_dict['J2'],qdot_dict['J1'],qdot_dict['J2'],qddot_dict['J1'],qddot_dict['J2']]).transpose()
     output_mat = np.array([a_dict['J1'],a_dict['J2']]).transpose()
     print(input_mat.shape)
@@ -128,6 +131,7 @@ def loop_func(netType, root_save_path):
 
     print("Finish training!")
 
-netType = 'DeLan'
+# netType = 'DeLan'
+netType = 'DeLan_Sin'
 root_save_path = path.join('.', 'data', 'trackTrajectory')
 loop_func(netType, root_save_path)

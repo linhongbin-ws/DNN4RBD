@@ -17,10 +17,32 @@ class CosTraj():
         qdd = -self.w * self.w * np.cos(self.w * t + self.b) *self.A
         return q, qd, qdd
 
+class ValinaCosTraj():
+    def __init__(self, A_list_list, w_list_list, b_list_list):
+        self.A_mat = np.array(A_list_list)
+        self.w_mat = np.array(w_list_list)
+        self.b_mat = np.array(b_list_list)
+        if self.A_mat.shape != self.w_mat.shape and self.w_mat.shape!=self.b_mat.shape:
+            raise Exception("length of arguments should be equal")
+        self.weight_vec = np.ones((self.A_mat.shape[1],1))
+        self._dof = self.A_mat.shape[0]
+    def forward(self, t):
+        w_mat = self.w_mat
+        b_mat = self.b_mat
+        A_mat = self.A_mat
+        weight_vec = self.weight_vec
 
-def runTrajectory(controller, traj, sampleNum = 20000, savePath='.',saveFig=True, dt=0.01, isShowPlot=True,isRender=True, saveName=None, isReturnAllForce=False):
+        q = np.multiply(A_mat, np.cos(w_mat*t+b_mat)).dot(weight_vec)
+        qd = -np.multiply(np.multiply(A_mat, np.sin(w_mat * t+ b_mat)), w_mat).dot(weight_vec)
+        w2_mat = np.multiply(w_mat, w_mat)
+        qdd = -np.multiply(np.multiply(A_mat, np.cos(w_mat * t+ b_mat)), w2_mat).dot(weight_vec)
+        return q.reshape(self._dof), qd.reshape(self._dof), qdd.reshape(self._dof)
+
+def runTrajectory(controller, traj, sampleNum = 20000, savePath='.',saveFig=True, sim_hz=100, sample_ratio=1, isShowPlot=True,isRender=True, saveName=None, isReturnAllForce=False):
+    if sample_ratio<1:
+        raise Exception("sample_ratio should be larger or equal than one")
     env = gym.make('acrobotBmt-v0')
-    env.dt = dt
+    env.dt = 1.0/sim_hz
     obsve = env.reset()
     if isRender:
         env.render()
@@ -43,6 +65,7 @@ def runTrajectory(controller, traj, sampleNum = 20000, savePath='.',saveFig=True
     qddot_dict['J2'] = []
     a_dict['J1'] = []
     a_dict['J2'] = []
+    sample_cnt = 0
 
     if isReturnAllForce:
         m_dict = {}
@@ -63,24 +86,26 @@ def runTrajectory(controller, traj, sampleNum = 20000, savePath='.',saveFig=True
         a_dict['J1_pred'] = []
         a_dict['J2_pred'] = []
     progress_cnt = 0
-    for t in range(sampleNum):
+    for t in range(sampleNum*sample_ratio):
+        sample_cnt +=1
         tCount += env.dt
         if isRender:
             env.render()
         q, qd, qdd = traj.forward(tCount)
         a = controller.forward(s=[obsve[0, 0], obsve[1, 0], obsve[2, 0], obsve[3, 0], obsve[4, 0], obsve[5, 0]], sDes=[q[0], q[1], qd[0], qd[1], qdd[0], qdd[1]])
         obsve, _, _, _ = env.step(a[0], a[1])
-        t_list.append(tCount)
-        q_des_dict['J1'].append(q[0])
-        q_des_dict['J2'].append(q[1])
-        q_dict['J1'].append(obsve[0, 0])
-        q_dict['J2'].append(obsve[1, 0])
-        qdot_dict['J1'].append(obsve[2, 0])
-        qdot_dict['J2'].append(obsve[3, 0])
-        a_dict['J1'].append(a[0])
-        a_dict['J2'].append(a[1])
-        qddot_dict['J1'].append(obsve[4, 0])
-        qddot_dict['J2'].append(obsve[5, 0])
+        if sample_cnt==sample_ratio:
+            t_list.append(tCount)
+            q_des_dict['J1'].append(q[0])
+            q_des_dict['J2'].append(q[1])
+            q_dict['J1'].append(obsve[0, 0])
+            q_dict['J2'].append(obsve[1, 0])
+            qdot_dict['J1'].append(obsve[2, 0])
+            qdot_dict['J2'].append(obsve[3, 0])
+            a_dict['J1'].append(a[0])
+            a_dict['J2'].append(a[1])
+            qddot_dict['J1'].append(obsve[4, 0])
+            qddot_dict['J2'].append(obsve[5, 0])
         progress = int((t+1)*100/sampleNum)
         progress_cnt = progress if progress_cnt<progress else progress
         print("run trajectory(",progress_cnt,"/100)")
@@ -90,23 +115,25 @@ def runTrajectory(controller, traj, sampleNum = 20000, savePath='.',saveFig=True
             s.extend(q)
             s.extend(qd)
             s.extend(qdd)
-            m, c, g = env.model.inverse_all(s)
-            m_dict['J1'].append(m[0])
-            m_dict['J2'].append(m[1])
-            c_dict['J1'].append(c[0])
-            c_dict['J2'].append(c[1])
-            g_dict['J1'].append(g[0])
-            g_dict['J2'].append(g[1])
-            m, c, g = controller.dynamic_controller.forward_all(s)
-            m_dict['J1_pred'].append(m[0])
-            m_dict['J2_pred'].append(m[1])
-            c_dict['J1_pred'].append(c[0])
-            c_dict['J2_pred'].append(c[1])
-            g_dict['J1_pred'].append(g[0])
-            g_dict['J2_pred'].append(g[1])
-            a_dict['J1_pred'].append(m[0]+c[0]+g[0])
-            a_dict['J2_pred'].append(m[1]+c[1]+g[1])
-
+            if sample_cnt == sample_ratio:
+                m, c, g = env.model.inverse_all(s)
+                m_dict['J1'].append(m[0])
+                m_dict['J2'].append(m[1])
+                c_dict['J1'].append(c[0])
+                c_dict['J2'].append(c[1])
+                g_dict['J1'].append(g[0])
+                g_dict['J2'].append(g[1])
+                m, c, g = controller.dynamic_controller.forward_all(s)
+                m_dict['J1_pred'].append(m[0])
+                m_dict['J2_pred'].append(m[1])
+                c_dict['J1_pred'].append(c[0])
+                c_dict['J2_pred'].append(c[1])
+                g_dict['J1_pred'].append(g[0])
+                g_dict['J2_pred'].append(g[1])
+                a_dict['J1_pred'].append(m[0]+c[0]+g[0])
+                a_dict['J2_pred'].append(m[1]+c[1]+g[1])
+        if sample_cnt == sample_ratio:
+            sample_cnt = 0
 
 
         #time.sleep(0.05)
