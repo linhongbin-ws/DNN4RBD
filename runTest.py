@@ -35,9 +35,9 @@ def loop_func(netType, root_path):
     save_path = path.join(root_path, netType)
     load_path = save_path
     a = np.load(path.join(load_path,'trainTrajectory.npz'), allow_pickle=True)
-    A_dict = a['arr_0'].tolist()
-    w_dict = a['arr_1'].tolist()
-    b_dict = a['arr_2'].tolist()
+    A_list_list = a['arr_0'].tolist()
+    w_list_list = a['arr_1'].tolist()
+    b_list_list = a['arr_2'].tolist()
     device = torch.device('cpu')
     model = get_model(netType, device)
     model, input_scaler, output_scaler = load_model(path.join(load_path,'model'), netType, model)
@@ -45,8 +45,8 @@ def loop_func(netType, root_path):
     dynamic_controller = Dynamic_Controller(model, input_scaler, output_scaler)
     pd_controller = PD_Controller()
     pd_dynamic_controller = PD_Dynamic_Controller(pd_controller, dynamic_controller)
-    traj = ValinaCosTraj(A_list_list=[A_dict['J1'],A_dict['J2']], w_list_list=[w_dict['J1'],w_dict['J2']],
-                         b_list_list=[b_dict['J1'],b_dict['J2']])
+    traj = ValinaCosTraj(A_list_list=A_list_list, w_list_list=w_list_list,
+                         b_list_list=b_list_list)
     q_dict, qdot_dict, qddot_dict, a_dict, _ = runTrajectory(pd_dynamic_controller, traj, sampleNum = 2000, savePath=save_path,saveFig=True,
                                                           sim_hz=100, isShowPlot=True,isRender=False,saveName='testTrajectory',isReturnAllForce=True, isPlotPredictVel=True)
 

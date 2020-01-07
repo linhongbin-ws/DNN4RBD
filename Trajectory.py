@@ -184,6 +184,7 @@ def runTrajectory(controller, traj, sampleNum = 20000, savePath='.',saveFig=True
         plt.plot(t_list, vecDict['y_Pred'] , 'r')
         plt.plot(t_list, vecDict['y'], 'k')
         plt.legend(['Predict', 'Measure'], loc='upper right')
+        fig.savefig(path.join(savePath, 'PredictVelocity' + '.png'))
 
     if isReturnAllForce:
         y1LabelList = ['J1','J2']

@@ -168,10 +168,13 @@ class DeLanJacobianNet_inverse(torch.nn.Module):
         self.m = torch.nn.Parameter(torch.randn(DOF))
         self.episilon = 1e-6
 
-        List = []
+        modelList = []
+        paramList = []
         for i in range(DOF):
-            List.append(SinNet(DOF, 30, 3 * DOF))
-        self.JoNetList = torch.nn.ModuleList(List)
+            modelList.append(SinNet(DOF, 30, 3 * DOF))
+            paramList.append(torch.nn.Parameter(torch.randn(3+2+1)))
+        self.JoNetList = torch.nn.ModuleList(modelList)
+        self.InertiaParam = torch.nn.ParameterList(paramList)
     def cal_func(self, x):
         q = x[:,0:self._dof]
         q.requires_grad_(True)
@@ -179,18 +182,27 @@ class DeLanJacobianNet_inverse(torch.nn.Module):
         qDDot = x[:, self._dof*2:self._dof*3]
 
         # Jacobian Net
-        Jp = self.forward_J_mat(q)
+        Jp = self.forward_Jp_mat(q)
         Hp_mat = torch.zeros(x.shape[0], self._dof, self._dof).to(self.device)
         for i in range(self._dof):
             Jpi = torch.cat((Jp[:, :, :i+1],  torch.zeros(x.shape[0], 3, self._dof-i-1).to(self.device)), 2)
             Hp_mat = Hp_mat + Jpi.permute(0,2,1).bmm(Jpi)*(self.m[i].clamp(min=self.episilon))
 
         # Orientation Inertia Matrix
-        h_lo =  self._LoNet(q)
-        LO_mat = torch.zeros(x.shape[0], self._dof, self._dof).to(self.device)
-        for i  in range(x.shape[0]):
-            LO_mat[i][np.tril_indices(self._dof, 0)] = h_lo[i,:]
-        Ho_mat = LO_mat.bmm(LO_mat.permute(0,2,1))
+        # h_lo =  self._LoNet(q)
+        # LO_mat = torch.zeros(x.shape[0], self._dof, self._dof).to(self.device)
+        # for i  in range(x.shape[0]):
+        #     LO_mat[i][np.tril_indices(self._dof, 0)] = h_lo[i,:]
+        # Ho_mat = LO_mat.bmm(LO_mat.permute(0,2,1))
+        Ho_mat = torch.zeros(x.shape[0], self._dof, self._dof).to(self.device)
+        for i in range(self._dof):
+            Il_mat = torch.zeros(x.shape[0], 3, 3).to(self.device)
+            for j in range(x.shape[0]):
+                Il_mat[j][np.tril_indices(3, 0)] = self.InertiaParam[i]
+            I_mat = Il_mat.bmm(Il_mat.permute(0,2,1))
+            Jo = self.JoNetList[i](q)
+            Jo_mat = Jo.view(x.shape[0], 3, -1)
+            Ho_mat = Ho_mat + Jo_mat.permute(0,2,1).bmm(I_mat).bmm(Jo_mat)
 
         H = Ho_mat + Hp_mat
 

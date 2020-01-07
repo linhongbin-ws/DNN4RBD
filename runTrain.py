@@ -25,26 +25,9 @@ def loop_func(netType, root_save_path):
     learning_rate = 0.04
     weight_decay = 1e-4
     sample_ratio = 2
-    A_dict = {}
-    w_dict = {}
-    b_dict = {}
-    A_dict['J1'] = []
-    A_dict['J2'] = []
-    w_dict['J1'] = []
-    w_dict['J2'] = []
-    b_dict['J1'] = []
-    b_dict['J2'] = []
-    A_dict['J1'].append(0.1); w_dict['J1'].append(10); b_dict['J1'].append(0.2)
-    A_dict['J1'].append(0.5); w_dict['J1'].append(6); b_dict['J1'].append(0.3)
-    A_dict['J1'].append(0.6);w_dict['J1'].append(2);b_dict['J1'].append(0.4)
-    A_dict['J1'].append(1); w_dict['J1'].append(1); b_dict['J1'].append(0.6)
-
-    A_dict['J2'].append(0.1); w_dict['J2'].append(10); b_dict['J2'].append(0.3)
-    A_dict['J2'].append(0.5); w_dict['J2'].append(5); b_dict['J2'].append(0.1)
-    A_dict['J2'].append(0.6);w_dict['J2'].append(2);b_dict['J2'].append(0.3)
-    A_dict['J2'].append(1); w_dict['J2'].append(1); b_dict['J2'].append(0.1)
-    np.savez(path.join(save_path, 'trainTrajectory'), A_dict, w_dict, b_dict)
-
+    A_list_list = [[1,0.5,0.2,0.1],[1,0.5,0.2,0.1]]
+    w_list_list = [[2,3,5,6],[2,3,5,6]]
+    b_list_list = [[0, 0, 0, 0], [0, 0, 0, 0]]
 
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -53,8 +36,8 @@ def loop_func(netType, root_save_path):
     for i in range(2):
         controller.kp[i] = controller.kp[i]*10
         controller.kd[i] = controller.kd[i] * 2
-    traj = ValinaCosTraj(A_list_list=[A_dict['J1'],A_dict['J2']], w_list_list=[w_dict['J1'],w_dict['J2']],
-                         b_list_list=[b_dict['J1'],b_dict['J2']])
+    traj = ValinaCosTraj(A_list_list=A_list_list, w_list_list=w_list_list,
+                         b_list_list=b_list_list)
     sampleNum = 2000
 
     ## run simulation for acrobot
@@ -69,6 +52,7 @@ def loop_func(netType, root_save_path):
     if not path.isdir(save_path):
         mkdir(save_path)
     np.savez(path.join(save_path,'trainData'), input_mat, output_mat)
+    np.savez(path.join(save_path, 'trainTrajectory'), A_list_list, w_list_list, b_list_list)
 
     ## data loader for training. good solution for loading big data
     train_loader, valid_loader, input_scaler, output_scaler = createLoader(input_mat, output_mat,batch_size,valid_ratio,is_scale=True,device=device)
