@@ -29,6 +29,22 @@ class AcrobotBmt_Dynamics:
         self.f2 = 0.1
         self.g = 9.8
 
+    def cal_Jacobian(self, q1, q2):
+        l1 = self.l1
+        l2 = self.l2
+        J = np.zeros((2,2))
+        J[0, 0] = - l2 * sin(q1 + q2 - pi / 2) - l1 * sin(q1 - pi / 2)
+        J[0, 1] = - l2 * sin(q1 + q2 - pi / 2)
+
+        J[1, 0] = l2 * cos(q1 + q2 - pi / 2) + l1 * cos(q1 - pi / 2)
+        J[1, 1] = l2 * cos(q1 + q2 - pi / 2)
+        return J
+
+    def foward_cartesVel(self, q1, q2, qd1, qd2):
+        J =  self.cal_Jacobian(q1, q2)
+        cartesVel = J.dot(np.array([[qd1],[qd2]]))
+        return cartesVel[0,0], cartesVel[1,0]
+
     def cal_components(self, q1, q2, qd1, qd2, a1, a2):
         s1 = sin(q1)
         s2 = sin(q2)

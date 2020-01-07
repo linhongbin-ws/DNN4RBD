@@ -24,21 +24,44 @@ def loop_func(netType, root_save_path):
     earlyStop_patience = 8
     learning_rate = 0.04
     weight_decay = 1e-4
+    sample_ratio = 2
+    A_dict = {}
+    w_dict = {}
+    b_dict = {}
+    A_dict['J1'] = []
+    A_dict['J2'] = []
+    w_dict['J1'] = []
+    w_dict['J2'] = []
+    b_dict['J1'] = []
+    b_dict['J2'] = []
+    A_dict['J1'].append(0.1); w_dict['J1'].append(10); b_dict['J1'].append(0.2)
+    A_dict['J1'].append(0.5); w_dict['J1'].append(6); b_dict['J1'].append(0.3)
+    A_dict['J1'].append(0.6);w_dict['J1'].append(2);b_dict['J1'].append(0.4)
+    A_dict['J1'].append(1); w_dict['J1'].append(1); b_dict['J1'].append(0.6)
+
+    A_dict['J2'].append(0.1); w_dict['J2'].append(10); b_dict['J2'].append(0.3)
+    A_dict['J2'].append(0.5); w_dict['J2'].append(5); b_dict['J2'].append(0.1)
+    A_dict['J2'].append(0.6);w_dict['J2'].append(2);b_dict['J2'].append(0.3)
+    A_dict['J2'].append(1); w_dict['J2'].append(1); b_dict['J2'].append(0.1)
+    np.savez(path.join(save_path, 'trainTrajectory'), A_dict, w_dict, b_dict)
+
+
+
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print("Using hardware for training model: ",device)
     controller = PD_Controller()
     for i in range(2):
         controller.kp[i] = controller.kp[i]*10
         controller.kd[i] = controller.kd[i] * 2
-    traj = ValinaCosTraj(A_list_list=[[0.1, 0.2, 0.4, 1], [0.1, 0.2, 0.4, 1]], w_list_list=[[6, 4, 2, 1], [6, 4, 2, 1]],
-                         b_list_list=[[0, 0, 0, 0], [0.5, 0.5, 0.5, 0.5]])
+    traj = ValinaCosTraj(A_list_list=[A_dict['J1'],A_dict['J2']], w_list_list=[w_dict['J1'],w_dict['J2']],
+                         b_list_list=[b_dict['J1'],b_dict['J2']])
     sampleNum = 2000
 
     ## run simulation for acrobot
     model = get_model(netType, device)
     model = model.to(device)
     q_dict, qdot_dict, qddot_dict, a_dict = runTrajectory(sampleNum = sampleNum, controller = controller, traj=traj, sim_hz=100,
-                                                          savePath=save_path, isShowPlot=False, isRender=False, saveName='trainTrajectory', sample_ratio=5)
+                                                          savePath=save_path, isShowPlot=True, isRender=False, saveName='trainTrajectory', sample_ratio=sample_ratio)
     input_mat = np.array([q_dict['J1'],q_dict['J2'],qdot_dict['J1'],qdot_dict['J2'],qddot_dict['J1'],qddot_dict['J2']]).transpose()
     output_mat = np.array([a_dict['J1'],a_dict['J2']]).transpose()
     print(input_mat.shape)
@@ -129,9 +152,11 @@ def loop_func(netType, root_save_path):
         plt.show()
         fig.savefig(path.join(save_path, 'trainLoss.png'))
 
+
     print("Finish training!")
 
 # netType = 'DeLan'
-netType = 'DeLan_Sin'
+#netType = 'DeLan_Sin'
+netType = 'DeLanJacobianNet_inverse'
 root_save_path = path.join('.', 'data', 'trackTrajectory')
 loop_func(netType, root_save_path)

@@ -13,8 +13,11 @@ def get_model(use_net, device='cpu'):
         gNet = ReLuNet(2, [10], 2).to(device)
         model = DeLanNet_inverse(Ld_Net, Lo_Net, gNet, 2, device=device)
         return model
-    if use_net == 'DeLan_Sin':
+    elif use_net == 'DeLan_Sin':
         model = Delan_Sin(2, device)
+        return model
+    elif use_net == 'DeLanJacobianNet_inverse':
+        model = DeLanJacobianNet_inverse(2, device)
         return model
     else:
         raise Exception(use_net + 'is not support')

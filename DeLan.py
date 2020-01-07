@@ -157,28 +157,42 @@ class DeLanJacobianNet_inverse(torch.nn.Module):
     def __init__(self, DOF,  device='cpu'):
         super(DeLanJacobianNet_inverse, self).__init__()
         self._JpNet = SinNet(DOF, 30, 3 * DOF)
-        self._LoNet = SinNet(DOF, 30, 3 * DOF)
+        L_Dim = 0
+        for i in range(DOF):
+            L_Dim += i + 1
+        self.L_Dim = L_Dim
+        self._LoNet = SinNet(DOF, 30, L_Dim)
         self._gNet = SinNet(DOF, 20, DOF)
         self._dof = DOF
         self.device = device
-    def cal_func(self, x):
+        self.m = torch.nn.Parameter(torch.randn(DOF))
+        self.episilon = 1e-6
 
+        List = []
+        for i in range(DOF):
+            List.append(SinNet(DOF, 30, 3 * DOF))
+        self.JoNetList = torch.nn.ModuleList(List)
+    def cal_func(self, x):
         q = x[:,0:self._dof]
         q.requires_grad_(True)
         qDot = x[:, self._dof:self._dof*2]
         qDDot = x[:, self._dof*2:self._dof*3]
 
         # Jacobian Net
-        j = self._JpNet(q)
-        Jp = j[:, 0:3*self._dof]. view(x.shape[0], -1 , 3)
+        Jp = self.forward_J_mat(q)
+        Hp_mat = torch.zeros(x.shape[0], self._dof, self._dof).to(self.device)
+        for i in range(self._dof):
+            Jpi = torch.cat((Jp[:, :, :i+1],  torch.zeros(x.shape[0], 3, self._dof-i-1).to(self.device)), 2)
+            Hp_mat = Hp_mat + Jpi.permute(0,2,1).bmm(Jpi)*(self.m[i].clamp(min=self.episilon))
 
         # Orientation Inertia Matrix
-        LO_mat = torch.zeros(x.shape[0], self._dof,self._dof).to(self.device)
+        h_lo =  self._LoNet(q)
+        LO_mat = torch.zeros(x.shape[0], self._dof, self._dof).to(self.device)
         for i  in range(x.shape[0]):
-            LO_mat[i][np.tril_indices(self._dof, -1)] = h_lo[i,:]
+            LO_mat[i][np.tril_indices(self._dof, 0)] = h_lo[i,:]
+        Ho_mat = LO_mat.bmm(LO_mat.permute(0,2,1))
 
-        h_ld = self._LdNet(q)
-        h_lo = self._LoNet(q)
+        H = Ho_mat + Hp_mat
 
         # for i in range(x.shape[0]):
         #     L_mat = torch.zeros(self._dof, self._dof)
@@ -187,12 +201,7 @@ class DeLanJacobianNet_inverse(torch.nn.Module):
         #     H = torch.mm(L_mat.t(),L_mat)
         #     tau_m = qDDot[i][:].matmul(H)
         #     tau_m_mat[i][:] = tau_m
-        L_mat = torch.zeros(x.shape[0], self._dof,self._dof).to(self.device)
-        for i  in range(x.shape[0]):
-            L_mat[i][np.tril_indices(self._dof, -1)] = h_lo[i,:]
-            L_mat[i][range(self._dof),range(self._dof)] = h_ld[i,:]
-        L_mat_P = L_mat.permute(0,2,1)
-        H = L_mat.bmm(L_mat_P)
+
         tau_m_mat = qDDot.unsqueeze(1).bmm(H)
         tau_m_mat = tau_m_mat.squeeze(1)
 
@@ -233,3 +242,13 @@ class DeLanJacobianNet_inverse(torch.nn.Module):
     def forward_all(self,x):
         m, c, g = self.cal_func(x)
         return m, c, g
+
+    def forward_Jp_mat(self, q):
+        j = self._JpNet(q)
+        return j.view(q.shape[0], 3, -1)
+
+    def forward_cartesVel(self, q, qdot):
+        Jp_mat = self.forward_Jp_mat(q)
+        x_vel = qdot.unsqueeze(1).bmm(Jp_mat.permute(0,2,1))
+        x_vel = x_vel.squeeze(1)
+        return x_vel

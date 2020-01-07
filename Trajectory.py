@@ -5,6 +5,7 @@ import time
 from Controller import PD_Controller
 import matplotlib.pyplot as plt
 from os import path, mkdir
+import torch
 class CosTraj():
     def __init__(self):
         self.A = np.pi
@@ -38,7 +39,7 @@ class ValinaCosTraj():
         qdd = -np.multiply(np.multiply(A_mat, np.cos(w_mat * t+ b_mat)), w2_mat).dot(weight_vec)
         return q.reshape(self._dof), qd.reshape(self._dof), qdd.reshape(self._dof)
 
-def runTrajectory(controller, traj, sampleNum = 20000, savePath='.',saveFig=True, sim_hz=100, sample_ratio=1, isShowPlot=True,isRender=True, saveName=None, isReturnAllForce=False):
+def runTrajectory(controller, traj, sampleNum = 20000, savePath='.',saveFig=True, sim_hz=100, sample_ratio=1, isShowPlot=True,isRender=True, saveName=None, isReturnAllForce=False, isPlotPredictVel=False):
     if sample_ratio<1:
         raise Exception("sample_ratio should be larger or equal than one")
     env = gym.make('acrobotBmt-v0')
@@ -156,7 +157,33 @@ def runTrajectory(controller, traj, sampleNum = 20000, savePath='.',saveFig=True
             saveName = 'tractory'
         fig.savefig(path.join(savePath,saveName+'.png'))
 
-
+    if isPlotPredictVel:
+        vecDict = {}
+        vecDict['x'] = []
+        vecDict['x_Pred'] = []
+        vecDict['y'] = []
+        vecDict['y_Pred'] = []
+        for i in range(len(q_dict['J1'])):
+            q1 = q_dict['J1'][i]
+            q2 = q_dict['J2'][i]
+            qd1 = qdot_dict['J1'][i]
+            qd2 = qdot_dict['J2'][i]
+            vel = controller.dynamic_controller.model.forward_cartesVel(torch.FloatTensor([[q1, q2]]),
+                                                            torch.FloatTensor([[qd1, qd2]]))
+            vecDict['x_Pred'].append(vel[0, 0])
+            vecDict['y_Pred'].append(vel[0, 1])
+            x, y = env.model.foward_cartesVel(q1, q2, qd1, qd2)
+            vecDict['x'].append(x)
+            vecDict['y'].append(y)
+        fig = plt.figure()
+        plt.subplot(211)
+        plt.plot(t_list, vecDict['x_Pred'] , 'r')
+        plt.plot(t_list, vecDict['x'], 'k')
+        plt.legend(['Predict', 'Measure'], loc='upper right')
+        plt.subplot(212)
+        plt.plot(t_list, vecDict['y_Pred'] , 'r')
+        plt.plot(t_list, vecDict['y'], 'k')
+        plt.legend(['Predict', 'Measure'], loc='upper right')
 
     if isReturnAllForce:
         y1LabelList = ['J1','J2']
