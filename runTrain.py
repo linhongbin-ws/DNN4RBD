@@ -25,9 +25,9 @@ def loop_func(netType, root_save_path):
     learning_rate = 0.04
     weight_decay = 1e-4
     sample_ratio = 1
-    A_list_list = [[1, 0.5,0.3,0.2,0.2],  [1, 0.5, 0.3, 0.2, 0.2]]
-    w_list_list = [[2, 3,  4, 5, 6],      [2,   3,   4,   5,   6]]
-    b_list_list = [[0, 0,  0, 0, 0],      [0.1, 0.2, 0.2, 0.3, 0.6]]
+    A_list_list = [[1, 0.2, 0.1, 0.2],    [1, 0.2, 0.1, 0.2]]
+    w_list_list = [[1, 3,   5,   6],      [1,   3,   5,   6]]
+    b_list_list = [[0, 0,   0,   0],      [0.1, 0.2, 0.3, 0.6]]
 
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')

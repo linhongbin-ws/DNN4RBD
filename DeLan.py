@@ -164,7 +164,6 @@ class DeLanJacobianNet_inverse(torch.nn.Module):
         self._gNet = SinNet(DOF, 40, DOF)
         self._dof = DOF
         self.device = device
-        self.m = torch.nn.Parameter(torch.randn(DOF))
         self.episilon = 1e-6
 
         JoList = []
@@ -174,15 +173,37 @@ class DeLanJacobianNet_inverse(torch.nn.Module):
         for i in range(self.cartes_dim):
             inertia_dim += i+1
 
-        for i in range(DOF):
-            JpList.append(SinNet(i+1, 40, self.cartes_dim * (i+1)))
-            JoList.append(SinNet(i+1, 40, self.cartes_dim * (i+1)))
-            paramList.append(torch.nn.Parameter(torch.randn(inertia_dim)))
-        self.JpNetList = torch.nn.ModuleList(JpList)
-        self.JoNetList = torch.nn.ModuleList(JoList)
-        self.InertiaParam = torch.nn.ParameterList(paramList)
-
         self.isSpecialCase = True
+
+        if self.isSpecialCase:
+            m1 = 1
+            m2 = 1
+            l1 = 1
+            l2 = 2
+            lc1 = l1 / 2
+            lc2 = l2 / 2
+            self.m = None
+            self.m = torch.zeros(self._dof).to(self.device)
+            self.m[0] = m1
+            self.m[1] = m2
+            Ic1 = 0.083
+            Ic2 = 0.33
+            I1 = Ic1 + m1 * lc1 ** 2
+            I2 = Ic2 + m2 * lc2 ** 2
+            self.Ho = torch.from_numpy(np.array([[I1+I2, I2],[I2, I2]]))
+            for i in range(DOF):
+                JpList.append(SinNet(i + 1, 20, 2 * (i + 1)))
+            self.JpNetList = torch.nn.ModuleList(JpList)
+        else:
+            self.m = torch.nn.Parameter(torch.randn(DOF))
+            for i in range(DOF):
+                JpList.append(SinNet(i + 1, 20, self.cartes_dim * (i + 1)))
+                JoList.append(SinNet(i + 1, 20, self.cartes_dim * (i + 1)))
+                paramList.append(torch.nn.Parameter(torch.randn(inertia_dim)))
+            self.JpNetList = torch.nn.ModuleList(JpList)
+            self.JoNetList = torch.nn.ModuleList(JoList)
+            self.InertiaParam = torch.nn.ParameterList(paramList)
+
     def cal_func(self, x):
         q = x[:,0:self._dof]
         q.requires_grad_(True)
@@ -192,11 +213,17 @@ class DeLanJacobianNet_inverse(torch.nn.Module):
         # Jacobian Net
         Hp_mat = torch.zeros(x.shape[0], self._dof, self._dof).to(self.device)
         for i in range(self._dof):
-            Jp = self.JpNetList[i](q[:,:i+1]).view(q.shape[0], self.cartes_dim, -1)
-            Jpi = torch.cat((Jp,  torch.zeros(x.shape[0], self.cartes_dim, self._dof-i-1).to(self.device)), 2)
             if self.isSpecialCase:
-                Jpi[:,2,:] = torch.zeros(Jpi.shape[0], Jpi.shape[2]).to(self.device)
-            Hp_mat = Hp_mat + Jpi.permute(0,2,1).bmm(Jpi)*(self.m[i].clamp(min=self.episilon))
+                Jp = self.JpNetList[i](q[:, :i + 1]).view(q.shape[0], 2, -1)
+                Jpi = torch.cat((Jp, torch.zeros(x.shape[0], 2, self._dof - i - 1).to(self.device)), 2)
+                Jpi = torch.cat((Jpi,torch.zeros(Jpi.shape[0], 1, Jpi.shape[2]).to(self.device)), 1)
+                Hp_mat = Hp_mat + Jpi.permute(0, 2, 1).bmm(Jpi) * self.m[i]
+            else:
+                Jp = self.JpNetList[i](q[:, :i + 1]).view(q.shape[0], self.cartes_dim, -1)
+                Jpi = torch.cat((Jp, torch.zeros(x.shape[0], self.cartes_dim, self._dof - i - 1).to(self.device)), 2)
+                Jpi = Jp
+                Hp_mat = Hp_mat + Jpi.permute(0, 2, 1).bmm(Jpi) * (self.m[i].clamp(min=self.episilon))
+
 
         # Orientation Inertia Matrix
         # h_lo =  self._LoNet(q)
@@ -205,20 +232,19 @@ class DeLanJacobianNet_inverse(torch.nn.Module):
         #     LO_mat[i][np.tril_indices(self._dof, 0)] = h_lo[i,:]
         # Ho_mat = LO_mat.bmm(LO_mat.permute(0,2,1))
         Ho_mat = torch.zeros(x.shape[0], self._dof, self._dof).to(self.device)
-        for i in range(self._dof):
-            Il_mat = torch.zeros(x.shape[0], self.cartes_dim, self.cartes_dim).to(self.device)
-            for j in range(x.shape[0]):
-                Il_mat[j][np.tril_indices(self.cartes_dim, 0)] = self.InertiaParam[i]
-            I_mat = Il_mat.bmm(Il_mat.permute(0,2,1))
-            if not self.isSpecialCase:
+        if self.isSpecialCase:
+            Ho_mat = torch.zeros(x.shape[0], self._dof, self._dof).to(self.device)
+            for i in range(x.shape[0]):
+                Ho_mat[i,:,:] = self.Ho
+        else:
+            for i in range(self._dof):
+                Il_mat = torch.zeros(x.shape[0], self.cartes_dim, self.cartes_dim).to(self.device)
+                for j in range(x.shape[0]):
+                    Il_mat[j][np.tril_indices(self.cartes_dim, 0)] = self.InertiaParam[i]
+                I_mat = Il_mat.bmm(Il_mat.permute(0,2,1))
                 Jo = self.JoNetList[i](q[:,:i+1]).view(q.shape[0], self.cartes_dim, -1)
                 Joi = torch.cat((Jo, torch.zeros(x.shape[0], self.cartes_dim, self._dof - i - 1).to(self.device)), 2)
                 Ho_mat = Ho_mat + Joi.permute(0,2,1).bmm(I_mat).bmm(Joi)
-            else:
-                # Jo = torch.zeros(x.shape[0], self.cartes_dim, self._dof).to(self.device)
-                # Jo_3 = torch.cat((torch.ones(x.shape[0], i+1), torch.zeros(x.shape[0], self._dof-i-1)), 1).to(self.device)
-                # Jo[:,2,:]  = Jo_3
-                Ho_mat = Ho_mat + I_mat[:,:2,:2]
 
         H = Ho_mat + Hp_mat
 
@@ -272,7 +298,10 @@ class DeLanJacobianNet_inverse(torch.nn.Module):
         return m, c, g
 
     def forward_Jp_mat(self, q):
-        Jp = self.JpNetList[-1](q).view(q.shape[0], self.cartes_dim, -1)
+        if self.isSpecialCase:
+            Jp = self.JpNetList[-1](q).view(q.shape[0], 2, -1)
+        else:
+            Jp = self.JpNetList[-1](q).view(q.shape[0], self.cartes_dim, -1)
         return Jp
 
     def forward_cartesVel(self, q, qdot):

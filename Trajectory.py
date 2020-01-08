@@ -198,7 +198,7 @@ def runTrajectory(controller, traj, sampleNum = 20000, savePath='.',saveFig=True
         fig, axs = plt.subplots(2)
         y1LableList = ['x_Pred','y_Pred']
         y2LableList = ['x', 'y']
-        yLabelList = [r'$x(m/s)$', r'$y(m/s)$']
+        yLabelList = [r'$v_x(m/s)$', r'$v_y(m/s)$']
         font = 8
         titlefont = 14
         subTextfont = 12
