@@ -156,25 +156,33 @@ class Delan_Sin(torch.nn.Module):
 class DeLanJacobianNet_inverse(torch.nn.Module):
     def __init__(self, DOF,  device='cpu'):
         super(DeLanJacobianNet_inverse, self).__init__()
-        self._JpNet = SinNet(DOF, 30, 3 * DOF)
+        self.cartes_dim = 3
         L_Dim = 0
         for i in range(DOF):
             L_Dim += i + 1
         self.L_Dim = L_Dim
-        self._LoNet = SinNet(DOF, 30, L_Dim)
-        self._gNet = SinNet(DOF, 20, DOF)
+        self._gNet = SinNet(DOF, 40, DOF)
         self._dof = DOF
         self.device = device
         self.m = torch.nn.Parameter(torch.randn(DOF))
         self.episilon = 1e-6
 
-        modelList = []
+        JoList = []
+        JpList = []
         paramList = []
+        inertia_dim = 0
+        for i in range(self.cartes_dim):
+            inertia_dim += i+1
+
         for i in range(DOF):
-            modelList.append(SinNet(DOF, 30, 3 * DOF))
-            paramList.append(torch.nn.Parameter(torch.randn(3+2+1)))
-        self.JoNetList = torch.nn.ModuleList(modelList)
+            JpList.append(SinNet(i+1, 40, self.cartes_dim * (i+1)))
+            JoList.append(SinNet(i+1, 40, self.cartes_dim * (i+1)))
+            paramList.append(torch.nn.Parameter(torch.randn(inertia_dim)))
+        self.JpNetList = torch.nn.ModuleList(JpList)
+        self.JoNetList = torch.nn.ModuleList(JoList)
         self.InertiaParam = torch.nn.ParameterList(paramList)
+
+        self.isSpecialCase = True
     def cal_func(self, x):
         q = x[:,0:self._dof]
         q.requires_grad_(True)
@@ -182,10 +190,12 @@ class DeLanJacobianNet_inverse(torch.nn.Module):
         qDDot = x[:, self._dof*2:self._dof*3]
 
         # Jacobian Net
-        Jp = self.forward_Jp_mat(q)
         Hp_mat = torch.zeros(x.shape[0], self._dof, self._dof).to(self.device)
         for i in range(self._dof):
-            Jpi = torch.cat((Jp[:, :, :i+1],  torch.zeros(x.shape[0], 3, self._dof-i-1).to(self.device)), 2)
+            Jp = self.JpNetList[i](q[:,:i+1]).view(q.shape[0], self.cartes_dim, -1)
+            Jpi = torch.cat((Jp,  torch.zeros(x.shape[0], self.cartes_dim, self._dof-i-1).to(self.device)), 2)
+            if self.isSpecialCase:
+                Jpi[:,2,:] = torch.zeros(Jpi.shape[0], Jpi.shape[2]).to(self.device)
             Hp_mat = Hp_mat + Jpi.permute(0,2,1).bmm(Jpi)*(self.m[i].clamp(min=self.episilon))
 
         # Orientation Inertia Matrix
@@ -196,13 +206,19 @@ class DeLanJacobianNet_inverse(torch.nn.Module):
         # Ho_mat = LO_mat.bmm(LO_mat.permute(0,2,1))
         Ho_mat = torch.zeros(x.shape[0], self._dof, self._dof).to(self.device)
         for i in range(self._dof):
-            Il_mat = torch.zeros(x.shape[0], 3, 3).to(self.device)
+            Il_mat = torch.zeros(x.shape[0], self.cartes_dim, self.cartes_dim).to(self.device)
             for j in range(x.shape[0]):
-                Il_mat[j][np.tril_indices(3, 0)] = self.InertiaParam[i]
+                Il_mat[j][np.tril_indices(self.cartes_dim, 0)] = self.InertiaParam[i]
             I_mat = Il_mat.bmm(Il_mat.permute(0,2,1))
-            Jo = self.JoNetList[i](q)
-            Jo_mat = Jo.view(x.shape[0], 3, -1)
-            Ho_mat = Ho_mat + Jo_mat.permute(0,2,1).bmm(I_mat).bmm(Jo_mat)
+            if not self.isSpecialCase:
+                Jo = self.JoNetList[i](q[:,:i+1]).view(q.shape[0], self.cartes_dim, -1)
+                Joi = torch.cat((Jo, torch.zeros(x.shape[0], self.cartes_dim, self._dof - i - 1).to(self.device)), 2)
+                Ho_mat = Ho_mat + Joi.permute(0,2,1).bmm(I_mat).bmm(Joi)
+            else:
+                # Jo = torch.zeros(x.shape[0], self.cartes_dim, self._dof).to(self.device)
+                # Jo_3 = torch.cat((torch.ones(x.shape[0], i+1), torch.zeros(x.shape[0], self._dof-i-1)), 1).to(self.device)
+                # Jo[:,2,:]  = Jo_3
+                Ho_mat = Ho_mat + I_mat[:,:2,:2]
 
         H = Ho_mat + Hp_mat
 
@@ -256,8 +272,8 @@ class DeLanJacobianNet_inverse(torch.nn.Module):
         return m, c, g
 
     def forward_Jp_mat(self, q):
-        j = self._JpNet(q)
-        return j.view(q.shape[0], 3, -1)
+        Jp = self.JpNetList[-1](q).view(q.shape[0], self.cartes_dim, -1)
+        return Jp
 
     def forward_cartesVel(self, q, qdot):
         Jp_mat = self.forward_Jp_mat(q)

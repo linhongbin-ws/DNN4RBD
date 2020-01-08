@@ -47,7 +47,7 @@ def loop_func(netType, root_path):
     pd_dynamic_controller = PD_Dynamic_Controller(pd_controller, dynamic_controller)
     traj = ValinaCosTraj(A_list_list=A_list_list, w_list_list=w_list_list,
                          b_list_list=b_list_list)
-    q_dict, qdot_dict, qddot_dict, a_dict, _ = runTrajectory(pd_dynamic_controller, traj, sampleNum = 2000, savePath=save_path,saveFig=True,
+    q_dict, qdot_dict, qddot_dict, a_dict, _ = runTrajectory(pd_dynamic_controller, traj, sampleNum = 70, savePath=save_path,saveFig=True,
                                                           sim_hz=100, isShowPlot=True,isRender=False,saveName='testTrajectory',isReturnAllForce=True, isPlotPredictVel=True)
 
 

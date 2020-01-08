@@ -4,6 +4,7 @@ import gym_acrobot
 import time
 from Controller import PD_Controller
 import matplotlib.pyplot as plt
+import matplotlib
 from os import path, mkdir
 import torch
 class CosTraj():
@@ -139,15 +140,32 @@ def runTrajectory(controller, traj, sampleNum = 20000, savePath='.',saveFig=True
 
         #time.sleep(0.05)
     env.close()
-    fig = plt.figure()
-    plt.subplot(211)
-    plt.plot(t_list, q_des_dict['J1'], 'r')
-    plt.plot(t_list, q_dict['J1'], 'k')
-    plt.legend(['Desired Trajectory','Measured Trajectory'],loc='upper right')
-    plt.subplot(212)
-    plt.plot(t_list, q_des_dict['J2'], 'r')
-    plt.plot(t_list, q_dict['J2'], 'k')
-    plt.legend(['Desired Trajectory','Measured Trajectory'],loc='upper right')
+
+    # plot figures
+    fig, axs = plt.subplots(2)
+    yStrList = ['J1', 'J2']
+    yLabelList = [r'$q_1(^{\circ})$', r'$q_2(^{\circ})$']
+    font = 8
+    titlefont = 14
+    subTextfont = 12
+    fig.suptitle('Desired and Measured Trajectory', fontsize=titlefont)
+    for i in range(2):
+        ax = axs[i]
+        ax.plot(t_list, q_des_dict[yStrList[i]], 'k')
+        ax.plot(t_list, q_dict[yStrList[i]], 'r')
+
+        ax.set_ylabel(yLabelList[i], fontsize=subTextfont)
+        if i == 0:
+            ax.legend(['Desired','Measured'],loc='upper right')
+            ax.tick_params(
+                axis='x',  # changes apply to the x-axis
+                which='both',  # both major and minor ticks are affected
+                bottom=False,  # ticks along the bottom edge are off
+                top=False,  # ticks along the top edge are off
+                labelbottom=False)
+        else:
+            ax.set_xlabel('t(s)', fontsize=subTextfont)
+
     if isShowPlot:
         plt.show()
     if saveFig:
@@ -175,39 +193,64 @@ def runTrajectory(controller, traj, sampleNum = 20000, savePath='.',saveFig=True
             x, y = env.model.foward_cartesVel(q1, q2, qd1, qd2)
             vecDict['x'].append(x)
             vecDict['y'].append(y)
-        fig = plt.figure()
-        plt.subplot(211)
-        plt.plot(t_list, vecDict['x_Pred'] , 'r')
-        plt.plot(t_list, vecDict['x'], 'k')
-        plt.legend(['Predict', 'Measure'], loc='upper right')
-        plt.subplot(212)
-        plt.plot(t_list, vecDict['y_Pred'] , 'r')
-        plt.plot(t_list, vecDict['y'], 'k')
-        plt.legend(['Predict', 'Measure'], loc='upper right')
+
+        # plot figures
+        fig, axs = plt.subplots(2)
+        y1LableList = ['x_Pred','y_Pred']
+        y2LableList = ['x', 'y']
+        yLabelList = [r'$x(m/s)$', r'$y(m/s)$']
+        font = 8
+        titlefont = 14
+        subTextfont = 12
+        fig.suptitle('Predict vs Mearsure Velocity for End-Effector', fontsize=titlefont)
+        for i in range(2):
+            ax = axs[i]
+            ax.plot(t_list, vecDict[y1LableList[i]], 'r')
+            ax.plot(t_list, vecDict[y2LableList[i]], 'k')
+            ax.set_ylabel(yLabelList[i], fontsize=subTextfont)
+            if i == 0:
+                ax.legend(['Predict', 'Measure'], loc='upper right')
+                ax.tick_params(
+                    axis='x',  # changes apply to the x-axis
+                    which='both',  # both major and minor ticks are affected
+                    bottom=False,  # ticks along the bottom edge are off
+                    top=False,  # ticks along the top edge are off
+                    labelbottom=False)
+            else:
+                ax.set_xlabel('t(s)', fontsize=subTextfont)
         fig.savefig(path.join(savePath, 'PredictVelocity' + '.png'))
 
     if isReturnAllForce:
         y1LabelList = ['J1','J2']
         y2LabelList = ['J1_pred', 'J2_pred']
 
+        tilteLableList = [r'$\tau_{I}(N.m)$', r'$\tau_{C}(N.m)$',r'$\tau_{g}(N.m)$', r'$\tau(N.m)$']
+        font = 8
+        titlefont = 14
+        subTextfont = 12
         for j in range(2):
-            fig = plt.figure()
+            fig, axs = plt.subplots(4)
+            matplotlib.rcParams.update({'font.size': font})
+            fig.suptitle('Predict torques vs Mearsure torque for Joint '+str(j+1),fontsize=titlefont)
             x = t_list
             y1_list = [m_dict[y1LabelList[j]], c_dict[y1LabelList[j]],g_dict[y1LabelList[j]],a_dict[y1LabelList[j]]]
             y2_list = [m_dict[y2LabelList[j]], c_dict[y2LabelList[j]], g_dict[y2LabelList[j]], a_dict[y2LabelList[j]]]
             for i in range(4):
-                plt.subplot(411+i)
-                plt.plot(x, y1_list[i], 'r')
-                plt.plot(x, y2_list[i], 'k')
+                ax = axs[i]
+                ax.plot(x, y1_list[i], 'k')
+                ax.plot(x, y2_list[i], 'r')
+                ax.set_ylabel(tilteLableList[i],fontsize=subTextfont)
                 if i==0:
-                    plt.legend(['Ground Truth', 'Predict'], loc='upper right')
+                    ax.legend(['Ground Truth', 'Predict'], loc='upper right',fontsize=subTextfont)
                 if i is not 3:
-                    plt.tick_params(
+                    ax.tick_params(
                         axis='x',  # changes apply to the x-axis
                         which='both',  # both major and minor ticks are affected
                         bottom=False,  # ticks along the bottom edge are off
                         top=False,  # ticks along the top edge are off
                         labelbottom=False)
+                else:
+                    ax.set_xlabel('t(s)',fontsize=subTextfont)
             if isShowPlot:
                 plt.show()
             fig.savefig(path.join(savePath, saveName + '_torque_'+y1LabelList[j]+'.png'))
