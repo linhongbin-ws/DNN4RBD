@@ -40,6 +40,7 @@ def save_model(file_path, file_name, model, input_scaler=None, output_scaler=Non
         save_dict['output_scaler'] = output_scaler
 
     torch.save(save_dict, path.join(file_path, file_name+'.pt'))
+    print("Save Model to: "+ path.join(file_path, file_name+'.pt'))
 
 def load_model(file_path, file_name, model):
     file = path.join(file_path, file_name)
@@ -48,6 +49,7 @@ def load_model(file_path, file_name, model):
         raise Exception(file+ 'cannot not be found')
 
     checkpoint = torch.load(file)
+    print("Load Model from: " + file)
     if isinstance(model, list):
         for i in range(len(model)):
             model[i].load_state_dict(checkpoint['data' + str(i + 1)])
