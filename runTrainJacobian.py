@@ -2,12 +2,10 @@ import numpy as np
 from reference.regularizeTool import EarlyStopping
 from loadModel import load_model, save_model, get_model
 from Net import *
-import time
 from loadData import createLoader
 from Trajectory import runTrajectory
 from os import path, mkdir
 from Controller import PD_Controller
-from Trajectory import CosTraj, ValinaCosTraj
 pi = np.pi
 from trainTool import train
 
@@ -24,19 +22,10 @@ def loop_func(netType, root_save_path):
     learning_rate = 0.04
     weight_decay = 1e-4
     sample_ratio = 1
-    A_list_list = [[1, 0.2, 0.1, 0.2],    [1, 0.2, 0.1, 0.2]]
-    w_list_list = [[1, 3,   5,   6],      [1,   3,   5,   6]]
-    b_list_list = [[0, 0,   0,   0],      [0.1, 0.2, 0.3, 0.6]]
 
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print("Using hardware for training model: ",device)
-    controller = PD_Controller()
-    for i in range(2):
-        controller.kp[i] = controller.kp[i]*10
-        controller.kd[i] = controller.kd[i] * 2
-    traj = ValinaCosTraj(A_list_list=A_list_list, w_list_list=w_list_list,
-                         b_list_list=b_list_list)
     sampleNum = 2000
 
     ## run simulation for acrobot
@@ -51,7 +40,6 @@ def loop_func(netType, root_save_path):
     if not path.isdir(save_path):
         mkdir(save_path)
     np.savez(path.join(save_path,'trainData'), input_mat, output_mat)
-    np.savez(path.join(save_path, 'trainTrajectory'), A_list_list, w_list_list, b_list_list)
 
     ## data loader for training. good solution for loading big data
     train_loader, valid_loader, input_scaler, output_scaler = createLoader(input_mat, output_mat,batch_size,valid_ratio,is_scale=True,device=device)
